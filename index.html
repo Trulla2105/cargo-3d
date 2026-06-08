@@ -19,7 +19,7 @@
       <span class="brand-tag">Optimizer Pro</span>
     </div>
     <nav class="ribbon">
-      <div class="menu-group" data-menu="file">
+      <div class="menu-group">
         <button class="menuBtn">Archivo <span class="chevron">▾</span></button>
         <div class="dropdown">
           <button id="btnSaveProject"><span class="ico">💾</span>Guardar proyecto</button>
@@ -31,7 +31,7 @@
           <button id="btnExportPNG"><span class="ico">🖼</span>Captura PNG</button>
         </div>
       </div>
-      <div class="menu-group" data-menu="view">
+      <div class="menu-group">
         <button class="menuBtn">Vista <span class="chevron">▾</span></button>
         <div class="dropdown">
           <button id="btnViewIso"><span class="ico">⟁</span>Isométrica</button>
@@ -61,38 +61,40 @@
         <span class="panel-icon">📦</span>
         <h3>Contenedor</h3>
       </div>
-      <div class="field-row">
+      <div style="padding:12px">
         <select id="presetSelect" class="select-full">
           <option value="pallet_eu">Pallet Europeo (120×80×180)</option>
           <option value="pallet_std">Pallet Standard (120×100×180)</option>
-          <option value="20ft" selected>Contenedor 20' (600×240×240)</option>
-          <option value="40ft">Contenedor 40' (1200×240×240)</option>
-          <option value="40hc">Contenedor 40HC (1200×240×270)</option>
+          <option value="20ft" selected>Contenedor 20' (590×234×239)</option>
+          <option value="40ft">Contenedor 40' (1203×234×239)</option>
+          <option value="40hc">Contenedor 40HC (1203×234×270)</option>
           <option value="truck">Camión semirremolque (1360×248×270)</option>
           <option value="custom">Personalizado</option>
         </select>
-      </div>
-      <div class="grid3">
-        <label class="field">
-          <span>W (cm)</span>
-          <input id="cW" type="number" min="1" value="600">
-        </label>
-        <label class="field">
-          <span>D (cm)</span>
-          <input id="cD" type="number" min="1" value="240">
-        </label>
-        <label class="field">
-          <span>H (cm)</span>
-          <input id="cH" type="number" min="1" value="240">
-        </label>
-      </div>
-      <div class="field-row" style="margin-top:8px">
-        <label class="field" style="flex:1">
-          <span>Peso máx (kg)</span>
-          <input id="cMaxKg" type="number" min="0" value="25000">
-        </label>
-        <button class="btn ghost sm" id="btnApplyPreset">Aplicar</button>
-        <button class="btn accent sm" id="btnUpdateContainer">✓</button>
+        <div class="grid3" style="margin-top:8px">
+          <label class="field">
+            <span>W (cm)</span>
+            <input id="cW" type="number" min="1" value="590">
+          </label>
+          <label class="field">
+            <span>D (cm)</span>
+            <input id="cD" type="number" min="1" value="234">
+          </label>
+          <label class="field">
+            <span>H (cm)</span>
+            <input id="cH" type="number" min="1" value="239">
+          </label>
+        </div>
+        <div class="field-row" style="margin-top:8px">
+          <label class="field" style="flex:1">
+            <span>Peso máx (kg)</span>
+            <input id="cMaxKg" type="number" min="0" value="25000">
+          </label>
+        </div>
+        <div class="field-row" style="margin-top:8px; gap:6px">
+          <button class="btn ghost" id="btnApplyPreset" style="flex:1">Cargar preset</button>
+          <button class="btn accent" id="btnUpdateContainer" style="flex:1">✓ Aplicar</button>
+        </div>
       </div>
     </section>
 
@@ -103,7 +105,7 @@
         <h3>Nueva caja</h3>
         <button class="panel-toggle" id="toggleBoxForm">▾</button>
       </div>
-      <div id="boxFormBody">
+      <div id="boxFormBody" style="padding:12px">
         <div class="grid2">
           <label class="field">
             <span>Nombre</span>
@@ -159,13 +161,15 @@
             </select>
           </label>
         </div>
-        <div class="field-row" style="margin-top:10px">
-          <label class="field color-field">
-            <span>Color</span>
-            <input id="bColor" type="color" value="#3b82f6">
+        <div class="field-row" style="margin-top:10px; align-items:center">
+          <label class="field" style="flex-direction:row; align-items:center; gap:8px">
+            <span style="font-size:11px; color:var(--text3); text-transform:uppercase; white-space:nowrap">Color</span>
+            <input id="bColor" type="color" value="#3b82f6" style="width:44px; height:32px; cursor:pointer">
           </label>
-          <button class="btn primary" id="btnAddBox" style="flex:1;margin-left:8px">+ Agregar</button>
         </div>
+        <button class="btn primary" id="btnAddBox" style="width:100%; margin-top:10px; height:38px; font-size:14px; font-weight:600">
+          + Agregar caja
+        </button>
       </div>
     </section>
 
@@ -176,50 +180,8 @@
         <h3>Lista de cajas</h3>
         <span class="badge" id="boxCount">0</span>
       </div>
-      <div id="boxList">
+      <div id="boxList" style="padding:8px">
         <div class="empty-state">Sin cajas. Agregá una arriba.</div>
-      </div>
-    </section>
-
-    <!-- ESTADÍSTICAS -->
-    <section class="panel">
-      <div class="panel-header">
-        <span class="panel-icon">📊</span>
-        <h3>Estadísticas</h3>
-      </div>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-val" id="statPlaced">0</div>
-          <div class="stat-lbl">Cajas colocadas</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-val" id="statVol">0%</div>
-          <div class="stat-lbl">Volumen usado</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-val" id="statWeight">0 kg</div>
-          <div class="stat-lbl">Peso total</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-val" id="statFree">0%</div>
-          <div class="stat-lbl">Espacio libre</div>
-        </div>
-      </div>
-      <div class="progress-bar-wrap">
-        <div class="progress-bar-label">
-          <span>Ocupación</span><span id="progPct">0%</span>
-        </div>
-        <div class="progress-track">
-          <div class="progress-fill" id="progFill" style="width:0%"></div>
-        </div>
-      </div>
-      <div class="progress-bar-wrap" style="margin-top:8px">
-        <div class="progress-bar-label">
-          <span>Peso</span><span id="progWeightPct">0%</span>
-        </div>
-        <div class="progress-track">
-          <div class="progress-fill weight" id="progWeightFill" style="width:0%"></div>
-        </div>
       </div>
     </section>
 
@@ -229,16 +191,47 @@
   <main class="viewport" id="viewport">
     <div id="canvas3d"></div>
 
-    <!-- HUD overlay -->
-    <div class="hud-overlay" id="hudOverlay">
+    <!-- HUD overlay abajo izquierda — info contenedor -->
+    <div class="hud-overlay">
       <div class="hud-chip" id="hudContainer">— sin contenedor —</div>
     </div>
 
-    <!-- Stats overlay -->
+    <!-- Stats overlay arriba izquierda — resumen rápido -->
     <div class="stats-overlay">
       <div class="ov-item"><span class="ov-label">Cajas</span><span id="ovPlaced">0</span></div>
       <div class="ov-item"><span class="ov-label">Vol</span><span id="ovVol">0%</span></div>
       <div class="ov-item"><span class="ov-label">Peso</span><span id="ovWeight">0 kg</span></div>
+    </div>
+
+    <!-- Panel de estadísticas flotante — abajo derecha -->
+    <div class="stats-float">
+      <div class="sf-title">📊 Estadísticas</div>
+      <div class="sf-grid">
+        <div class="sf-card">
+          <div class="sf-val" id="statPlaced">0</div>
+          <div class="sf-lbl">Colocadas</div>
+        </div>
+        <div class="sf-card">
+          <div class="sf-val" id="statVol">0%</div>
+          <div class="sf-lbl">Volumen</div>
+        </div>
+        <div class="sf-card">
+          <div class="sf-val" id="statWeight">0 kg</div>
+          <div class="sf-lbl">Peso</div>
+        </div>
+        <div class="sf-card">
+          <div class="sf-val" id="statFree">0%</div>
+          <div class="sf-lbl">Libre</div>
+        </div>
+      </div>
+      <div class="sf-bar-wrap">
+        <div class="sf-bar-label"><span>Ocupación</span><span id="progPct">0%</span></div>
+        <div class="sf-track"><div class="sf-fill" id="progFill" style="width:0%"></div></div>
+      </div>
+      <div class="sf-bar-wrap" style="margin-top:6px">
+        <div class="sf-bar-label"><span>Peso</span><span id="progWeightPct">0%</span></div>
+        <div class="sf-track"><div class="sf-fill weight" id="progWeightFill" style="width:0%"></div></div>
+      </div>
     </div>
 
     <!-- Toast -->

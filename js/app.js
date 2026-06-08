@@ -56,7 +56,7 @@ function applyPreset() {
   document.getElementById('cD').value = p.d;
   document.getElementById('cH').value = p.h;
   document.getElementById('cMaxKg').value = p.maxKg;
-  updateContainer(false);
+  updateContainer(true);
 }
 
 function updateContainer(showToast = true) {
