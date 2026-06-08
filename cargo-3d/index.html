@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cargo Optimizer 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">⬡</span>
+      <span class="brand-name">Cargo<strong>3D</strong></span>
+      <span class="brand-tag">Optimizer Pro</span>
+    </div>
+    <nav class="ribbon">
+      <div class="menu-group" data-menu="file">
+        <button class="menuBtn">Archivo <span class="chevron">▾</span></button>
+        <div class="dropdown">
+          <button id="btnSaveProject"><span class="ico">💾</span>Guardar proyecto</button>
+          <button id="btnOpenProject"><span class="ico">📂</span>Abrir proyecto</button>
+          <div class="sep"></div>
+          <button id="btnExportJSON"><span class="ico">⬇</span>Exportar JSON</button>
+          <button id="btnImportJSON"><span class="ico">⬆</span>Importar JSON</button>
+          <div class="sep"></div>
+          <button id="btnExportPNG"><span class="ico">🖼</span>Captura PNG</button>
+        </div>
+      </div>
+      <div class="menu-group" data-menu="view">
+        <button class="menuBtn">Vista <span class="chevron">▾</span></button>
+        <div class="dropdown">
+          <button id="btnViewIso"><span class="ico">⟁</span>Isométrica</button>
+          <button id="btnViewFront"><span class="ico">▣</span>Frontal</button>
+          <button id="btnViewSide"><span class="ico">▤</span>Lateral</button>
+          <button id="btnViewTop"><span class="ico">▥</span>Superior</button>
+          <div class="sep"></div>
+          <button id="btnResetCam"><span class="ico">↺</span>Reset cámara</button>
+          <button id="btnToggleGrid"><span class="ico">⊞</span>Toggle grid</button>
+          <button id="btnToggleWire"><span class="ico">◫</span>Toggle wireframe</button>
+        </div>
+      </div>
+      <div class="ribbon-divider"></div>
+      <button class="btn ghost" id="btnClearScene">Limpiar escena</button>
+      <button class="btn primary" id="btnOptimize">▶ Optimizar</button>
+      <div class="ribbon-spacer"></div>
+      <div class="status-pill" id="statusPill">Listo</div>
+    </nav>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- CONTENEDOR -->
+    <section class="panel">
+      <div class="panel-header">
+        <span class="panel-icon">📦</span>
+        <h3>Contenedor</h3>
+      </div>
+      <div class="field-row">
+        <select id="presetSelect" class="select-full">
+          <option value="pallet_eu">Pallet Europeo (120×80×180)</option>
+          <option value="pallet_std">Pallet Standard (120×100×180)</option>
+          <option value="20ft" selected>Contenedor 20' (600×240×240)</option>
+          <option value="40ft">Contenedor 40' (1200×240×240)</option>
+          <option value="40hc">Contenedor 40HC (1200×240×270)</option>
+          <option value="truck">Camión semirremolque (1360×248×270)</option>
+          <option value="custom">Personalizado</option>
+        </select>
+      </div>
+      <div class="grid3">
+        <label class="field">
+          <span>W (cm)</span>
+          <input id="cW" type="number" min="1" value="600">
+        </label>
+        <label class="field">
+          <span>D (cm)</span>
+          <input id="cD" type="number" min="1" value="240">
+        </label>
+        <label class="field">
+          <span>H (cm)</span>
+          <input id="cH" type="number" min="1" value="240">
+        </label>
+      </div>
+      <div class="field-row" style="margin-top:8px">
+        <label class="field" style="flex:1">
+          <span>Peso máx (kg)</span>
+          <input id="cMaxKg" type="number" min="0" value="25000">
+        </label>
+        <button class="btn ghost sm" id="btnApplyPreset">Aplicar</button>
+        <button class="btn accent sm" id="btnUpdateContainer">✓</button>
+      </div>
+    </section>
+
+    <!-- AGREGAR CAJAS -->
+    <section class="panel">
+      <div class="panel-header">
+        <span class="panel-icon">🟦</span>
+        <h3>Nueva caja</h3>
+        <button class="panel-toggle" id="toggleBoxForm">▾</button>
+      </div>
+      <div id="boxFormBody">
+        <div class="grid2">
+          <label class="field">
+            <span>Nombre</span>
+            <input id="bName" type="text" placeholder="Ej: Caja A">
+          </label>
+          <label class="field">
+            <span>SKU</span>
+            <input id="bSKU" type="text" placeholder="SKU-001">
+          </label>
+        </div>
+        <label class="field" style="margin-top:8px">
+          <span>Cliente</span>
+          <input id="bClient" type="text" placeholder="Nombre del cliente">
+        </label>
+        <div class="grid3" style="margin-top:8px">
+          <label class="field">
+            <span>W (cm)</span>
+            <input id="bW" type="number" min="1" value="50">
+          </label>
+          <label class="field">
+            <span>D (cm)</span>
+            <input id="bD" type="number" min="1" value="40">
+          </label>
+          <label class="field">
+            <span>H (cm)</span>
+            <input id="bH" type="number" min="1" value="30">
+          </label>
+        </div>
+        <div class="grid2" style="margin-top:8px">
+          <label class="field">
+            <span>Peso (kg/u)</span>
+            <input id="bKg" type="number" min="0" step="0.1" value="5">
+          </label>
+          <label class="field">
+            <span>Cantidad</span>
+            <input id="bQty" type="number" min="1" value="1">
+          </label>
+        </div>
+        <div class="grid2" style="margin-top:8px">
+          <label class="field">
+            <span>Prioridad</span>
+            <select id="bPriority">
+              <option value="normal">Normal</option>
+              <option value="high">Alta</option>
+              <option value="low">Baja</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Fragilidad</span>
+            <select id="bFragile">
+              <option value="no">Estándar</option>
+              <option value="yes">Frágil</option>
+            </select>
+          </label>
+        </div>
+        <div class="field-row" style="margin-top:10px">
+          <label class="field color-field">
+            <span>Color</span>
+            <input id="bColor" type="color" value="#3b82f6">
+          </label>
+          <button class="btn primary" id="btnAddBox" style="flex:1;margin-left:8px">+ Agregar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- LISTA DE CAJAS -->
+    <section class="panel">
+      <div class="panel-header">
+        <span class="panel-icon">📋</span>
+        <h3>Lista de cajas</h3>
+        <span class="badge" id="boxCount">0</span>
+      </div>
+      <div id="boxList">
+        <div class="empty-state">Sin cajas. Agregá una arriba.</div>
+      </div>
+    </section>
+
+    <!-- ESTADÍSTICAS -->
+    <section class="panel">
+      <div class="panel-header">
+        <span class="panel-icon">📊</span>
+        <h3>Estadísticas</h3>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-val" id="statPlaced">0</div>
+          <div class="stat-lbl">Cajas colocadas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="statVol">0%</div>
+          <div class="stat-lbl">Volumen usado</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="statWeight">0 kg</div>
+          <div class="stat-lbl">Peso total</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="statFree">0%</div>
+          <div class="stat-lbl">Espacio libre</div>
+        </div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-label">
+          <span>Ocupación</span><span id="progPct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progFill" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="progress-bar-wrap" style="margin-top:8px">
+        <div class="progress-bar-label">
+          <span>Peso</span><span id="progWeightPct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill weight" id="progWeightFill" style="width:0%"></div>
+        </div>
+      </div>
+    </section>
+
+  </aside>
+
+  <!-- VIEWPORT 3D -->
+  <main class="viewport" id="viewport">
+    <div id="canvas3d"></div>
+
+    <!-- HUD overlay -->
+    <div class="hud-overlay" id="hudOverlay">
+      <div class="hud-chip" id="hudContainer">— sin contenedor —</div>
+    </div>
+
+    <!-- Stats overlay -->
+    <div class="stats-overlay">
+      <div class="ov-item"><span class="ov-label">Cajas</span><span id="ovPlaced">0</span></div>
+      <div class="ov-item"><span class="ov-label">Vol</span><span id="ovVol">0%</span></div>
+      <div class="ov-item"><span class="ov-label">Peso</span><span id="ovWeight">0 kg</span></div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+  </main>
+
+  <!-- hidden inputs -->
+  <input id="fileInput" type="file" accept="application/json" style="display:none" />
+  <input id="projectInput" type="file" accept="application/json" style="display:none" />
+
+  <!-- THREE.JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- App modules -->
+  <script src="js/viewer.js"></script>
+  <script src="js/packing.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
