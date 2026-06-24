@@ -116,20 +116,21 @@ cargo-3d/
 | `G` | Toggle grid |
 | `W` | Toggle wireframe |
 
-### Probar si una caja entra (vista previa)
+### Colocar cajas a mano (drag & drop)
 
-Antes de optimizar, hacé click en el botón **⤧** de una caja en la lista para soltar una **caja fantasma** dentro del contenedor. Mientras la girás y la movés, el indicador de estado muestra en vivo **✓ Entra** (verde) o **✗ No entra** (rojo), chequeando tanto las medidas del contenedor como que no choque con las cajas ya colocadas.
+**Arrastrá** una caja desde la lista hacia el contenedor (sin soltar el botón). Aparece una **caja fantasma** que sigue al cursor sobre el piso y se apoya automáticamente arriba de lo que haya debajo. Mientras la arrastrás podés **rotarla**, y el color te dice si entra: **verde** = ✓ entra, **rojo** = ✗ no entra (se sale del contenedor o choca con otra caja). Soltás para colocarla.
 
 | Acción | Efecto |
 |--------|--------|
-| Arrastrar con el mouse | Rotación libre |
-| `X` / `Y` / `Z` | Giro de 90° sobre cada eje |
-| Flechas | Mover sobre el piso (X/Z) |
-| `Q` / `E` | Subir / bajar (Y) |
-| `0` | Restaurar orientación |
-| `Esc` | Salir de la vista previa |
+| Mover el mouse | Reubicar la caja sobre el piso |
+| Rueda del mouse | Rotar 90° sobre el eje vertical |
+| `X` / `Y` / `Z` (o `R`) | Rotar 90° sobre cada eje |
+| Soltar el botón | Colocar la caja (si entra) |
+| `Esc` | Cancelar |
 
-### Rotación manual de cajas colocadas
+Las colocaciones manuales se guardan junto con el proyecto. **Optimizar** vuelve a acomodar todo automáticamente y reemplaza lo manual.
+
+### Rotación de cajas ya colocadas
 
 Hacé **click** sobre una caja ya colocada para seleccionarla (queda resaltada en naranja) y rotala con el mouse o con `X` / `Y` / `Z`. `0` restaura y `Esc` (o click en vacío) deselecciona.
 

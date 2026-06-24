@@ -225,7 +225,7 @@ function placeBoxMesh(boxData, x, y, z) {
 
 function removeBoxMeshes() {
   deselectBox();
-  clearBoxPreview();
+  cancelDragPlacement();
   placedMeshes.forEach(m => {
     scene.remove(m);
     m.traverse(c => {
@@ -423,130 +423,210 @@ function resetSelectedBoxRotation() {
   return true;
 }
 
-// ── BOX PREVIEW ("¿entra?") ──────────────────────────────────
-// Drop a ghost box into the container, rotate/move it and check live
-// whether it fits (inside the container AND clear of the placed boxes).
+// ── DRAG & DROP PLACEMENT ────────────────────────────────────
+// Drag a box from the list into the container: a ghost follows the
+// cursor along the floor, rotate it with the wheel or X/Y/Z while
+// holding the button, and drop it to place it where it fits.
 
-let previewMesh = null;
-let previewContainer = null;
+let dragMesh = null;
+let dragBoxData = null;
+let dragContainer = null;
+let dragValid = false;
+const _floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const _dragNDC = new THREE.Vector2();
+const _hitPoint = new THREE.Vector3();
 const _tmpBox3 = new THREE.Box3();
 const _tmpBox3b = new THREE.Box3();
 
-function hasBoxPreview() {
-  return !!previewMesh;
+function isDraggingPlacement() {
+  return !!dragMesh;
 }
 
-function startBoxPreview(boxData, container) {
-  clearBoxPreview();
-  if (!container) {
-    if (typeof toast === 'function') toast('Definí el contenedor primero.', 'error');
-    return false;
-  }
+function startDragPlacement(boxData, container) {
+  cancelDragPlacement();
+  if (!container) return false;
   deselectBox();
-  previewContainer = container;
+  dragBoxData = boxData;
+  dragContainer = container;
 
   const { w, d, h, color } = boxData;
   const geom = new THREE.BoxGeometry(w, h, d);
   const mat = new THREE.MeshPhongMaterial({
     color: new THREE.Color(color || '#3b82f6'),
     transparent: true,
-    opacity: 0.55,
+    opacity: 0.6,
     shininess: 60,
   });
   const mesh = new THREE.Mesh(geom, mat);
   mesh.castShadow = true;
 
-  // Edge outline (kept bright so the ghost reads clearly)
-  const eGeom = new THREE.EdgesGeometry(geom);
-  const eMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
-  mesh.add(new THREE.LineSegments(eGeom, eMat));
+  const eMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geom), eMat));
 
-  // Rest it on the floor at the back-left corner of the container
-  mesh.position.set(-container.w / 2 + w / 2, h / 2, -container.d / 2 + d / 2);
-
-  mesh.userData = { type: 'preview', name: boxData.name, mat, edgeMat: eMat };
+  mesh.userData = { type: 'drag', mat, edgeMat: eMat };
+  mesh.visible = false; // hidden until the cursor is over the container floor
   scene.add(mesh);
-  previewMesh = mesh;
 
-  updatePreviewFit();
-  if (typeof toast === 'function') {
-    toast(`Probando "${boxData.name}" — arrastrá o X/Y/Z para rotar · flechas mueven · Q/E sube-baja · Esc salir`, 'info');
-  }
+  dragMesh = mesh;
+  controls.enabled = false; // freeze the camera while placing
   return true;
 }
 
-function clearBoxPreview() {
-  if (!previewMesh) return;
-  scene.remove(previewMesh);
-  previewMesh.traverse(c => {
+function cancelDragPlacement() {
+  if (!dragMesh) return;
+  scene.remove(dragMesh);
+  dragMesh.traverse(c => {
     if (c.geometry) c.geometry.dispose();
     if (c.material) c.material.dispose();
   });
-  previewMesh = null;
-  previewContainer = null;
+  dragMesh = null;
+  dragBoxData = null;
+  dragContainer = null;
+  dragValid = false;
+  controls.enabled = true;
   if (typeof setStatus === 'function') setStatus('Listo');
 }
 
-function rotatePreviewBox(axis, deg) {
-  if (!previewMesh) return false;
+// Project the screen cursor onto the container floor and move the ghost there.
+function updateDragPointer(clientX, clientY) {
+  if (!dragMesh) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const inside = clientX >= rect.left && clientX <= rect.right &&
+                 clientY >= rect.top && clientY <= rect.bottom;
+  if (!inside) {
+    dragMesh.visible = false;
+    dragValid = false;
+    if (typeof setStatus === 'function') setStatus('Soltá dentro del visor para colocar', '#d29922');
+    return;
+  }
+  _dragNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  _dragNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  _raycaster.setFromCamera(_dragNDC, camera);
+  if (!_raycaster.ray.intersectPlane(_floorPlane, _hitPoint)) {
+    dragMesh.visible = false;
+    dragValid = false;
+    return;
+  }
+  dragMesh.visible = true;
+  _positionDragAt(_hitPoint.x, _hitPoint.z);
+}
+
+// Center the ghost footprint at (x,z), clamp it inside the container and
+// rest it on top of whatever box is underneath (or the floor).
+function _positionDragAt(x, z) {
+  const c = dragContainer;
+  dragMesh.position.x = x;
+  dragMesh.position.z = z;
+
+  _tmpBox3.setFromObject(dragMesh);
+  const halfW = (_tmpBox3.max.x - _tmpBox3.min.x) / 2;
+  const halfD = (_tmpBox3.max.z - _tmpBox3.min.z) / 2;
+  dragMesh.position.x = Math.min(c.w / 2 - halfW, Math.max(-c.w / 2 + halfW, x));
+  dragMesh.position.z = Math.min(c.d / 2 - halfD, Math.max(-c.d / 2 + halfD, z));
+
+  // Find support height from boxes overlapping the footprint
+  _tmpBox3.setFromObject(dragMesh);
+  let support = 0;
+  for (const m of placedMeshes) {
+    _tmpBox3b.setFromObject(m);
+    const overlapXZ =
+      _tmpBox3.min.x < _tmpBox3b.max.x - 0.5 && _tmpBox3.max.x > _tmpBox3b.min.x + 0.5 &&
+      _tmpBox3.min.z < _tmpBox3b.max.z - 0.5 && _tmpBox3.max.z > _tmpBox3b.min.z + 0.5;
+    if (overlapXZ) support = Math.max(support, _tmpBox3b.max.y);
+  }
+  dragMesh.position.y += support - _tmpBox3.min.y; // rest the bottom on the support
+  updateDragFit();
+}
+
+function rotateDragBox(axis, deg) {
+  if (!dragMesh) return false;
   const rad = (deg * Math.PI) / 180;
   const v = axis === 'x' ? new THREE.Vector3(1, 0, 0)
           : axis === 'y' ? new THREE.Vector3(0, 1, 0)
           :                 new THREE.Vector3(0, 0, 1);
-  previewMesh.rotateOnWorldAxis(v, rad);
-  updatePreviewFit();
+  dragMesh.rotateOnWorldAxis(v, rad);
+  _positionDragAt(dragMesh.position.x, dragMesh.position.z); // re-rest after rotating
   return true;
 }
 
-function resetPreviewRotation() {
-  if (!previewMesh) return false;
-  previewMesh.rotation.set(0, 0, 0);
-  updatePreviewFit();
-  return true;
-}
-
-function moveBoxPreview(dx, dy, dz) {
-  if (!previewMesh) return false;
-  previewMesh.position.x += dx;
-  previewMesh.position.y += dy;
-  previewMesh.position.z += dz;
-  updatePreviewFit();
-  return true;
-}
-
-// Recompute fit (container bounds + collision with placed boxes) and recolor the ghost.
-function updatePreviewFit() {
-  if (!previewMesh || !previewContainer) return true;
-  const c = previewContainer;
+// Recompute fit (container bounds + collision with placed boxes), recolor the ghost.
+function updateDragFit() {
+  if (!dragMesh || !dragContainer) return false;
+  const c = dragContainer;
   const eps = 0.5;
 
-  _tmpBox3.setFromObject(previewMesh); // world AABB, accounts for any rotation
-  const insideContainer =
+  _tmpBox3.setFromObject(dragMesh); // world AABB, accounts for any rotation
+  const inside =
     _tmpBox3.min.x >= -c.w / 2 - eps && _tmpBox3.max.x <= c.w / 2 + eps &&
-    _tmpBox3.min.y >= -eps         && _tmpBox3.max.y <= c.h + eps &&
+    _tmpBox3.min.y >= -eps           && _tmpBox3.max.y <= c.h + eps &&
     _tmpBox3.min.z >= -c.d / 2 - eps && _tmpBox3.max.z <= c.d / 2 + eps;
 
-  // Shrink slightly so flush placement (shared faces) doesn't count as a collision.
-  const probe = _tmpBox3.clone().expandByScalar(-eps);
+  const probe = _tmpBox3.clone().expandByScalar(-eps); // ignore flush contact
   let collides = false;
   for (const m of placedMeshes) {
     _tmpBox3b.setFromObject(m);
     if (probe.intersectsBox(_tmpBox3b)) { collides = true; break; }
   }
 
-  const fits = insideContainer && !collides;
-
-  previewMesh.userData.mat.emissive.setHex(fits ? 0x1e7e34 : 0x8a1f1f);
-  previewMesh.userData.mat.emissiveIntensity = 0.9;
-  previewMesh.userData.mat.color.setHex(fits ? 0x3fb950 : 0xff7b72);
-  previewMesh.userData.edgeMat.color.setHex(fits ? 0xeafff0 : 0xffe1de);
+  dragValid = inside && !collides;
+  dragMesh.userData.mat.emissive.setHex(dragValid ? 0x1e7e34 : 0x8a1f1f);
+  dragMesh.userData.mat.emissiveIntensity = 0.9;
+  dragMesh.userData.mat.color.setHex(dragValid ? 0x3fb950 : 0xff7b72);
+  dragMesh.userData.edgeMat.color.setHex(dragValid ? 0xeafff0 : 0xffe1de);
 
   if (typeof setStatus === 'function') {
-    const reason = !insideContainer ? 'se sale del contenedor' : 'choca con otra caja';
-    setStatus(fits ? '✓ Entra en esta posición' : `✗ No entra — ${reason}`,
-              fits ? '#3fb950' : '#ff7b72');
+    const reason = !inside ? 'se sale del contenedor' : 'choca con otra caja';
+    setStatus(dragValid ? '✓ Soltá para colocar' : `✗ No entra — ${reason}`,
+              dragValid ? '#3fb950' : '#ff7b72');
   }
-  return fits;
+  return dragValid;
+}
+
+// Finalize: if valid, turn the ghost into a permanent placed box and return
+// its placement record. Otherwise cancel and return null.
+function commitDragPlacement() {
+  if (!dragMesh || !dragValid) { cancelDragPlacement(); return null; }
+  const mesh = dragMesh;
+  const b = dragBoxData;
+
+  // Restyle the ghost to look like a normal placed box
+  const mat = mesh.userData.mat;
+  mat.emissive.setHex(0x000000);
+  mat.emissiveIntensity = 1;
+  mat.color.set(new THREE.Color(b.color || '#3b82f6'));
+  mat.opacity = b.fragile === 'yes' ? 0.72 : 0.88;
+  mesh.receiveShadow = true;
+
+  const eMat = mesh.userData.edgeMat;
+  eMat.color.setHex(0x000000);
+  eMat.opacity = wireframeVisible ? 0.35 : 0;
+
+  mesh.userData = { type: 'box', id: b.id, name: b.name, edgeMat: eMat, manual: true };
+  placedMeshes.push(mesh);
+
+  const rec = {
+    id: b.id,
+    px: mesh.position.x, py: mesh.position.y, pz: mesh.position.z,
+    qx: mesh.quaternion.x, qy: mesh.quaternion.y, qz: mesh.quaternion.z, qw: mesh.quaternion.w,
+    w: b.w, d: b.d, h: b.h
+  };
+
+  dragMesh = null;
+  dragBoxData = null;
+  dragContainer = null;
+  dragValid = false;
+  controls.enabled = true;
+  if (typeof setStatus === 'function') setStatus('Listo');
+  return rec;
+}
+
+// Recreate a manually-placed box from a saved record (position + rotation).
+function placeManualBox(boxData, rec) {
+  const meshBox = Object.assign({}, boxData, { w: rec.w, d: rec.d, h: rec.h });
+  const mesh = placeBoxMesh(meshBox, rec.px, rec.py, rec.pz);
+  mesh.quaternion.set(rec.qx, rec.qy, rec.qz, rec.qw);
+  mesh.userData.manual = true;
+  return mesh;
 }
 
 // ── PNG EXPORT ───────────────────────────────────────────────
