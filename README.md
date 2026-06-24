@@ -116,6 +116,17 @@ cargo-3d/
 | `G` | Toggle grid |
 | `W` | Toggle wireframe |
 
+### Rotación manual de cajas
+
+Hacé **click** sobre una caja colocada para seleccionarla (queda resaltada en naranja) y rotala "en el aire":
+
+| Acción | Efecto |
+|--------|--------|
+| Arrastrar con el mouse | Rotación libre |
+| `X` / `Y` / `Z` | Giro de 90° sobre cada eje |
+| `0` | Restaurar orientación original |
+| `Esc` / click en vacío | Deseleccionar |
+
 ---
 
 ## Autor

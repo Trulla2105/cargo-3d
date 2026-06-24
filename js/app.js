@@ -439,6 +439,15 @@ function wireButtons() {
 
   // Keyboard shortcuts
   window.addEventListener('keydown', e => {
+    // While a placed box is selected, the X/Y/Z/0/Esc keys rotate it in the air.
+    if (typeof hasSelectedBox === 'function' && hasSelectedBox()) {
+      const k = e.key.toLowerCase();
+      if (e.key === 'Escape') { deselectBox(); return; }
+      if (k === 'x') { e.preventDefault(); rotateSelectedBox('x', 90); return; }
+      if (k === 'y') { e.preventDefault(); rotateSelectedBox('y', 90); return; }
+      if (k === 'z') { e.preventDefault(); rotateSelectedBox('z', 90); return; }
+      if (k === '0') { e.preventDefault(); resetSelectedBoxRotation(); return; }
+    }
     if (e.key === 'F5' || (e.ctrlKey && e.key === 'Enter')) {
       e.preventDefault();
       optimizeAndPlace();

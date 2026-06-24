@@ -65,6 +65,7 @@ function initThree() {
   scene.add(gridHelper);
 
   window.addEventListener('resize', onResize);
+  initBoxInteraction();
   animate();
 }
 
@@ -223,6 +224,7 @@ function placeBoxMesh(boxData, x, y, z) {
 }
 
 function removeBoxMeshes() {
+  deselectBox();
   placedMeshes.forEach(m => {
     scene.remove(m);
     m.traverse(c => {
@@ -287,6 +289,132 @@ function setCameraView(view, container) {
   }
 
   controls.update();
+}
+
+// ── BOX SELECTION & MANUAL ROTATION ──────────────────────────
+// Click a placed box to select it, then rotate it "in the air":
+//   · drag with the mouse for free rotation
+//   · X / Y / Z keys for 90° snaps around each axis
+//   · 0 resets the orientation · Esc / click empty space deselects
+
+let selectedMesh = null;
+const _raycaster = new THREE.Raycaster();
+const _pointerNDC = new THREE.Vector2();
+let _isRotatingBox = false;
+let _lastPointer = { x: 0, y: 0 };
+let _pointerDown = null;
+
+function initBoxInteraction() {
+  const dom = renderer.domElement;
+  // Capture phase so we can disable OrbitControls before it reacts to the drag.
+  dom.addEventListener('pointerdown', onBoxPointerDown, true);
+  window.addEventListener('pointermove', onBoxPointerMove);
+  window.addEventListener('pointerup', onBoxPointerUp);
+}
+
+function _pickBox(e) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  _pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  _pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  _raycaster.setFromCamera(_pointerNDC, camera);
+  const hits = _raycaster.intersectObjects(placedMeshes, false);
+  return hits.length ? hits[0].object : null;
+}
+
+function onBoxPointerDown(e) {
+  if (e.button !== 0) return; // left button only
+  const hit = _pickBox(e);
+  if (hit) {
+    selectBox(hit);
+    _isRotatingBox = true;
+    controls.enabled = false; // stop the camera from orbiting while we rotate the box
+    _lastPointer.x = e.clientX;
+    _lastPointer.y = e.clientY;
+    _pointerDown = { x: e.clientX, y: e.clientY, empty: false };
+  } else {
+    _pointerDown = { x: e.clientX, y: e.clientY, empty: true };
+  }
+}
+
+function onBoxPointerMove(e) {
+  if (!_isRotatingBox || !selectedMesh) return;
+  const dx = e.clientX - _lastPointer.x;
+  const dy = e.clientY - _lastPointer.y;
+  _lastPointer.x = e.clientX;
+  _lastPointer.y = e.clientY;
+  const f = 0.01; // radians per pixel
+  // Rotate around world axes so the drag feels intuitive from any camera angle.
+  selectedMesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), dx * f);
+  selectedMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), dy * f);
+}
+
+function onBoxPointerUp(e) {
+  if (_isRotatingBox) {
+    _isRotatingBox = false;
+    controls.enabled = true;
+  } else if (_pointerDown && _pointerDown.empty) {
+    const moved = Math.abs(e.clientX - _pointerDown.x) + Math.abs(e.clientY - _pointerDown.y);
+    if (moved < 4) deselectBox(); // a click (not a camera drag) on empty space deselects
+  }
+  _pointerDown = null;
+}
+
+function selectBox(mesh) {
+  if (selectedMesh === mesh) return;
+  deselectBox();
+  selectedMesh = mesh;
+
+  const mat = mesh.material;
+  mesh.userData._origEmissive = mat.emissive.getHex();
+  mesh.userData._origEmissiveIntensity = mat.emissiveIntensity;
+  mat.emissive.setHex(0xf0883e);
+  mat.emissiveIntensity = 0.5;
+
+  if (mesh.userData.edgeMat) {
+    mesh.userData._origEdgeOpacity = mesh.userData.edgeMat.opacity;
+    mesh.userData._origEdgeColor = mesh.userData.edgeMat.color.getHex();
+    mesh.userData.edgeMat.opacity = 0.95;
+    mesh.userData.edgeMat.color.setHex(0xf0883e);
+  }
+
+  if (typeof toast === 'function') {
+    toast(`"${mesh.userData.name}" — arrastrá para rotar · X/Y/Z giran 90° · 0 reset · Esc salir`, 'info');
+  }
+}
+
+function deselectBox() {
+  if (!selectedMesh) return;
+  const mesh = selectedMesh;
+  const mat = mesh.material;
+  if (mesh.userData._origEmissive != null) {
+    mat.emissive.setHex(mesh.userData._origEmissive);
+    mat.emissiveIntensity = mesh.userData._origEmissiveIntensity ?? 1;
+  }
+  if (mesh.userData.edgeMat && mesh.userData._origEdgeColor != null) {
+    mesh.userData.edgeMat.opacity = mesh.userData._origEdgeOpacity;
+    mesh.userData.edgeMat.color.setHex(mesh.userData._origEdgeColor);
+  }
+  selectedMesh = null;
+}
+
+function hasSelectedBox() {
+  return !!selectedMesh;
+}
+
+function rotateSelectedBox(axis, deg) {
+  if (!selectedMesh) return false;
+  const rad = (deg * Math.PI) / 180;
+  const v = axis === 'x' ? new THREE.Vector3(1, 0, 0)
+          : axis === 'y' ? new THREE.Vector3(0, 1, 0)
+          :                 new THREE.Vector3(0, 0, 1);
+  selectedMesh.rotateOnWorldAxis(v, rad);
+  return true;
+}
+
+function resetSelectedBoxRotation() {
+  if (!selectedMesh) return false;
+  selectedMesh.rotation.set(0, 0, 0);
+  return true;
 }
 
 // ── PNG EXPORT ───────────────────────────────────────────────
