@@ -447,6 +447,23 @@ input[type="color"] {
 }
 .box-del:hover { background: rgba(255,123,114,0.15); color: var(--red); border-color: var(--red); }
 
+.box-try {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.1s;
+  flex-shrink: 0;
+}
+.box-try:hover { background: rgba(240,136,62,0.15); color: var(--accent); border-color: var(--accent); }
+
 /* Stats grid */
 .stats-grid {
   display: grid;

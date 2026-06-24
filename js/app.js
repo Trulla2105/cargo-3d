@@ -111,6 +111,13 @@ function addBox() {
   toast(`"${name}" agregada (${qty} u).`, 'success');
 }
 
+function previewBoxType(id) {
+  if (!state.container) return toast('Definí el contenedor primero.', 'error');
+  const b = state.boxes.find(x => x.id === id);
+  if (!b) return;
+  startBoxPreview(b, state.container);
+}
+
 function removeBoxType(id) {
   state.boxes = state.boxes.filter(b => b.id !== id);
   renderBoxList();
@@ -151,6 +158,7 @@ function renderBoxList() {
         <div class="box-tags">${tags.join('')}</div>
       </div>
       ${placedStr}
+      <button class="box-try" onclick="previewBoxType('${b.id}')" title="Probar si entra">⤧</button>
       <button class="box-del" onclick="removeBoxType('${b.id}')" title="Eliminar">×</button>
     `;
     host.appendChild(item);
@@ -439,6 +447,22 @@ function wireButtons() {
 
   // Keyboard shortcuts
   window.addEventListener('keydown', e => {
+    // While previewing a box ("¿entra?"): rotate, move and check fit.
+    if (typeof hasBoxPreview === 'function' && hasBoxPreview()) {
+      const k = e.key.toLowerCase();
+      const step = 5; // cm per keypress
+      if (e.key === 'Escape') { clearBoxPreview(); return; }
+      if (k === 'x') { e.preventDefault(); rotatePreviewBox('x', 90); return; }
+      if (k === 'y') { e.preventDefault(); rotatePreviewBox('y', 90); return; }
+      if (k === 'z') { e.preventDefault(); rotatePreviewBox('z', 90); return; }
+      if (k === '0') { e.preventDefault(); resetPreviewRotation(); return; }
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); moveBoxPreview(-step, 0, 0); return; }
+      if (e.key === 'ArrowRight') { e.preventDefault(); moveBoxPreview( step, 0, 0); return; }
+      if (e.key === 'ArrowUp')    { e.preventDefault(); moveBoxPreview(0, 0, -step); return; }
+      if (e.key === 'ArrowDown')  { e.preventDefault(); moveBoxPreview(0, 0,  step); return; }
+      if (k === 'q') { e.preventDefault(); moveBoxPreview(0,  step, 0); return; }
+      if (k === 'e') { e.preventDefault(); moveBoxPreview(0, -step, 0); return; }
+    }
     // While a placed box is selected, the X/Y/Z/0/Esc keys rotate it in the air.
     if (typeof hasSelectedBox === 'function' && hasSelectedBox()) {
       const k = e.key.toLowerCase();

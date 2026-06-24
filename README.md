@@ -116,16 +116,22 @@ cargo-3d/
 | `G` | Toggle grid |
 | `W` | Toggle wireframe |
 
-### Rotación manual de cajas
+### Probar si una caja entra (vista previa)
 
-Hacé **click** sobre una caja colocada para seleccionarla (queda resaltada en naranja) y rotala "en el aire":
+Antes de optimizar, hacé click en el botón **⤧** de una caja en la lista para soltar una **caja fantasma** dentro del contenedor. Mientras la girás y la movés, el indicador de estado muestra en vivo **✓ Entra** (verde) o **✗ No entra** (rojo), chequeando tanto las medidas del contenedor como que no choque con las cajas ya colocadas.
 
 | Acción | Efecto |
 |--------|--------|
 | Arrastrar con el mouse | Rotación libre |
 | `X` / `Y` / `Z` | Giro de 90° sobre cada eje |
-| `0` | Restaurar orientación original |
-| `Esc` / click en vacío | Deseleccionar |
+| Flechas | Mover sobre el piso (X/Z) |
+| `Q` / `E` | Subir / bajar (Y) |
+| `0` | Restaurar orientación |
+| `Esc` | Salir de la vista previa |
+
+### Rotación manual de cajas colocadas
+
+Hacé **click** sobre una caja ya colocada para seleccionarla (queda resaltada en naranja) y rotala con el mouse o con `X` / `Y` / `Z`. `0` restaura y `Esc` (o click en vacío) deselecciona.
 
 ---
 

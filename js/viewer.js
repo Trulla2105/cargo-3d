@@ -225,6 +225,7 @@ function placeBoxMesh(boxData, x, y, z) {
 
 function removeBoxMeshes() {
   deselectBox();
+  clearBoxPreview();
   placedMeshes.forEach(m => {
     scene.remove(m);
     m.traverse(c => {
@@ -301,6 +302,7 @@ let selectedMesh = null;
 const _raycaster = new THREE.Raycaster();
 const _pointerNDC = new THREE.Vector2();
 let _isRotatingBox = false;
+let _activeRotMesh = null; // mesh currently being rotated by the mouse (placed box or preview ghost)
 let _lastPointer = { x: 0, y: 0 };
 let _pointerDown = null;
 
@@ -312,20 +314,22 @@ function initBoxInteraction() {
   window.addEventListener('pointerup', onBoxPointerUp);
 }
 
-function _pickBox(e) {
+function _pickInteractive(e) {
   const rect = renderer.domElement.getBoundingClientRect();
   _pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   _pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   _raycaster.setFromCamera(_pointerNDC, camera);
-  const hits = _raycaster.intersectObjects(placedMeshes, false);
+  const targets = previewMesh ? placedMeshes.concat(previewMesh) : placedMeshes;
+  const hits = _raycaster.intersectObjects(targets, false);
   return hits.length ? hits[0].object : null;
 }
 
 function onBoxPointerDown(e) {
   if (e.button !== 0) return; // left button only
-  const hit = _pickBox(e);
+  const hit = _pickInteractive(e);
   if (hit) {
-    selectBox(hit);
+    if (hit !== previewMesh) selectBox(hit); // preview ghost is already "active", don't treat as placed box
+    _activeRotMesh = hit;
     _isRotatingBox = true;
     controls.enabled = false; // stop the camera from orbiting while we rotate the box
     _lastPointer.x = e.clientX;
@@ -337,20 +341,22 @@ function onBoxPointerDown(e) {
 }
 
 function onBoxPointerMove(e) {
-  if (!_isRotatingBox || !selectedMesh) return;
+  if (!_isRotatingBox || !_activeRotMesh) return;
   const dx = e.clientX - _lastPointer.x;
   const dy = e.clientY - _lastPointer.y;
   _lastPointer.x = e.clientX;
   _lastPointer.y = e.clientY;
   const f = 0.01; // radians per pixel
   // Rotate around world axes so the drag feels intuitive from any camera angle.
-  selectedMesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), dx * f);
-  selectedMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), dy * f);
+  _activeRotMesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), dx * f);
+  _activeRotMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), dy * f);
+  if (_activeRotMesh === previewMesh) updatePreviewFit();
 }
 
 function onBoxPointerUp(e) {
   if (_isRotatingBox) {
     _isRotatingBox = false;
+    _activeRotMesh = null;
     controls.enabled = true;
   } else if (_pointerDown && _pointerDown.empty) {
     const moved = Math.abs(e.clientX - _pointerDown.x) + Math.abs(e.clientY - _pointerDown.y);
@@ -415,6 +421,132 @@ function resetSelectedBoxRotation() {
   if (!selectedMesh) return false;
   selectedMesh.rotation.set(0, 0, 0);
   return true;
+}
+
+// ── BOX PREVIEW ("¿entra?") ──────────────────────────────────
+// Drop a ghost box into the container, rotate/move it and check live
+// whether it fits (inside the container AND clear of the placed boxes).
+
+let previewMesh = null;
+let previewContainer = null;
+const _tmpBox3 = new THREE.Box3();
+const _tmpBox3b = new THREE.Box3();
+
+function hasBoxPreview() {
+  return !!previewMesh;
+}
+
+function startBoxPreview(boxData, container) {
+  clearBoxPreview();
+  if (!container) {
+    if (typeof toast === 'function') toast('Definí el contenedor primero.', 'error');
+    return false;
+  }
+  deselectBox();
+  previewContainer = container;
+
+  const { w, d, h, color } = boxData;
+  const geom = new THREE.BoxGeometry(w, h, d);
+  const mat = new THREE.MeshPhongMaterial({
+    color: new THREE.Color(color || '#3b82f6'),
+    transparent: true,
+    opacity: 0.55,
+    shininess: 60,
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.castShadow = true;
+
+  // Edge outline (kept bright so the ghost reads clearly)
+  const eGeom = new THREE.EdgesGeometry(geom);
+  const eMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+  mesh.add(new THREE.LineSegments(eGeom, eMat));
+
+  // Rest it on the floor at the back-left corner of the container
+  mesh.position.set(-container.w / 2 + w / 2, h / 2, -container.d / 2 + d / 2);
+
+  mesh.userData = { type: 'preview', name: boxData.name, mat, edgeMat: eMat };
+  scene.add(mesh);
+  previewMesh = mesh;
+
+  updatePreviewFit();
+  if (typeof toast === 'function') {
+    toast(`Probando "${boxData.name}" — arrastrá o X/Y/Z para rotar · flechas mueven · Q/E sube-baja · Esc salir`, 'info');
+  }
+  return true;
+}
+
+function clearBoxPreview() {
+  if (!previewMesh) return;
+  scene.remove(previewMesh);
+  previewMesh.traverse(c => {
+    if (c.geometry) c.geometry.dispose();
+    if (c.material) c.material.dispose();
+  });
+  previewMesh = null;
+  previewContainer = null;
+  if (typeof setStatus === 'function') setStatus('Listo');
+}
+
+function rotatePreviewBox(axis, deg) {
+  if (!previewMesh) return false;
+  const rad = (deg * Math.PI) / 180;
+  const v = axis === 'x' ? new THREE.Vector3(1, 0, 0)
+          : axis === 'y' ? new THREE.Vector3(0, 1, 0)
+          :                 new THREE.Vector3(0, 0, 1);
+  previewMesh.rotateOnWorldAxis(v, rad);
+  updatePreviewFit();
+  return true;
+}
+
+function resetPreviewRotation() {
+  if (!previewMesh) return false;
+  previewMesh.rotation.set(0, 0, 0);
+  updatePreviewFit();
+  return true;
+}
+
+function moveBoxPreview(dx, dy, dz) {
+  if (!previewMesh) return false;
+  previewMesh.position.x += dx;
+  previewMesh.position.y += dy;
+  previewMesh.position.z += dz;
+  updatePreviewFit();
+  return true;
+}
+
+// Recompute fit (container bounds + collision with placed boxes) and recolor the ghost.
+function updatePreviewFit() {
+  if (!previewMesh || !previewContainer) return true;
+  const c = previewContainer;
+  const eps = 0.5;
+
+  _tmpBox3.setFromObject(previewMesh); // world AABB, accounts for any rotation
+  const insideContainer =
+    _tmpBox3.min.x >= -c.w / 2 - eps && _tmpBox3.max.x <= c.w / 2 + eps &&
+    _tmpBox3.min.y >= -eps         && _tmpBox3.max.y <= c.h + eps &&
+    _tmpBox3.min.z >= -c.d / 2 - eps && _tmpBox3.max.z <= c.d / 2 + eps;
+
+  // Shrink slightly so flush placement (shared faces) doesn't count as a collision.
+  const probe = _tmpBox3.clone().expandByScalar(-eps);
+  let collides = false;
+  for (const m of placedMeshes) {
+    _tmpBox3b.setFromObject(m);
+    if (probe.intersectsBox(_tmpBox3b)) { collides = true; break; }
+  }
+
+  const fits = insideContainer && !collides;
+
+  previewMesh.userData.mat.emissive.setHex(fits ? 0x1e7e34 : 0x8a1f1f);
+  previewMesh.userData.mat.emissiveIntensity = 0.9;
+  previewMesh.userData.mat.color.setHex(fits ? 0x3fb950 : 0xff7b72);
+  previewMesh.userData.edgeMat.color.setHex(fits ? 0xeafff0 : 0xffe1de);
+
+  if (typeof setStatus === 'function') {
+    const reason = !insideContainer ? 'se sale del contenedor' : 'choca con otra caja';
+    setStatus(fits ? '✓ Entra en esta posición' : `✗ No entra — ${reason}`,
+              fits ? '#3fb950' : '#ff7b72');
+  }
+  return fits;
 }
 
 // ── PNG EXPORT ───────────────────────────────────────────────
