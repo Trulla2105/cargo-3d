@@ -27,8 +27,10 @@
           <div class="sep"></div>
           <button id="btnExportJSON"><span class="ico">⬇</span>Exportar JSON</button>
           <button id="btnImportJSON"><span class="ico">⬆</span>Importar JSON</button>
+          <button id="btnExportCSV"><span class="ico">CSV</span>Exportar CSV</button>
           <div class="sep"></div>
           <button id="btnExportPNG"><span class="ico">🖼</span>Captura PNG</button>
+          <button id="btnPrintReport"><span class="ico">🖨</span>Imprimir informe</button>
         </div>
       </div>
       <div class="menu-group">
@@ -42,9 +44,12 @@
           <button id="btnResetCam"><span class="ico">↺</span>Reset cámara</button>
           <button id="btnToggleGrid"><span class="ico">⊞</span>Toggle grid</button>
           <button id="btnToggleWire"><span class="ico">◫</span>Toggle wireframe</button>
+          <button id="btnToggleTheme"><span class="ico">☀</span>Tema claro/oscuro</button>
         </div>
       </div>
       <div class="ribbon-divider"></div>
+      <button class="btn ghost" id="btnUndoLayout">Deshacer</button>
+      <button class="btn ghost" id="btnRedoLayout">Rehacer</button>
       <button class="btn ghost" id="btnClearScene">Limpiar escena</button>
       <button class="btn primary" id="btnOptimize">▶ Optimizar</button>
       <div class="ribbon-spacer"></div>
@@ -190,6 +195,11 @@
   <!-- VIEWPORT 3D -->
   <main class="viewport" id="viewport">
     <div id="canvas3d"></div>
+    <div id="rotUI" class="rot-ui">
+      <button data-axis="y">Girar Y</button>
+      <button data-axis="x">Girar X</button>
+      <button data-axis="z">Girar Z</button>
+    </div>
 
     <!-- HUD overlay abajo izquierda — info contenedor -->
     <div class="hud-overlay">
@@ -198,9 +208,41 @@
 
     <!-- Stats overlay arriba izquierda — resumen rápido -->
     <div class="stats-overlay">
-      <div class="ov-item"><span class="ov-label">Cajas</span><span id="ovPlaced">0</span></div>
+      <div class="ov-item"><span class="ov-label">Cajas</span><span id="ovPlaced">0/0</span></div>
       <div class="ov-item"><span class="ov-label">Vol</span><span id="ovVol">0%</span></div>
       <div class="ov-item"><span class="ov-label">Peso</span><span id="ovWeight">0 kg</span></div>
+    </div>
+
+    <!-- Panel de cajas colocadas — lado opuesto a la lista de pendientes -->
+    <div class="placed-float">
+      <div class="placed-title">Cajas colocadas <span class="badge muted" id="placedCount">0</span></div>
+      <div id="placedList" class="placed-list">
+        <div class="empty-state compact">Todavía no hay cajas colocadas.</div>
+      </div>
+    </div>
+
+    <!-- Inspector de caja seleccionada -->
+    <div class="selection-float" id="selectionPanel">
+      <div class="selection-title">Caja seleccionada</div>
+      <div class="selection-empty" id="selectionEmpty">Seleccioná una caja del contenedor.</div>
+      <div class="selection-body" id="selectionBody" style="display:none">
+        <div class="selection-name" id="selName">Caja</div>
+        <div class="selection-meta" id="selMeta">—</div>
+        <div class="mini-grid">
+          <label class="field"><span>X</span><input id="selX" type="number" step="0.1"></label>
+          <label class="field"><span>Y</span><input id="selY" type="number" step="0.1"></label>
+          <label class="field"><span>Z</span><input id="selZ" type="number" step="0.1"></label>
+        </div>
+        <div class="mini-grid">
+          <button class="btn ghost sm" id="selRotY">Girar Y</button>
+          <button class="btn ghost sm" id="selRotX">Girar X</button>
+          <button class="btn ghost sm" id="selRotZ">Girar Z</button>
+        </div>
+        <div class="field-row">
+          <button class="btn ghost sm" id="selDuplicate" style="flex:1">Duplicar</button>
+          <button class="btn danger sm" id="selDelete" style="flex:1">Borrar</button>
+        </div>
+      </div>
     </div>
 
     <!-- Panel de estadísticas flotante — abajo derecha -->

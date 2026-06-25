@@ -53,8 +53,18 @@ orientaciones con `oriDims`/`rotIdx`).
 
 - 2026-06-25: El repo `main` y la rama `claude/happy-carson-yrafih` tenían una
   versión MÍA de drag que no servía (se iba de límites, etc.). Se descartó.
-- Pendiente: recibir `index.html` y `css/styles.css` de la versión del usuario
-  para copiar la versión completa y aplicar el fix de pointer events + R/T.
+- 2026-06-25: El usuario envió su versión COMPLETA (zip con index.html,
+  css/styles.css, js/*). Se copió tal cual al repo, reemplazando lo anterior.
+- 2026-06-25: Aplicado el ÚNICO cambio pedido — el arrastre de la lista ahora
+  usa pointer events (no HTML5 DnD), así R/T rotan la caja mientras se arrastra.
+  Cambios mínimos:
+  - `js/app.js` renderBoxList: el item arranca el drag con `pointerdown`
+    (`startManualPointerPending`) en vez de `draggable`/`dragstart`.
+  - `js/viewer.js`: nuevas funciones `startManualPointerPending`,
+    `updateManualGhost`, `finishManualPointerDrag`, `isOverCanvas`; listeners
+    `pointermove`/`pointerup` en window; el keydown de R/T/Y refresca el ghost.
+  - Verificado en Chromium: R y T rotan el ghost al arrastrar; la caja sale de
+    "pendientes" y va a "colocadas"; un solo ghost; sin errores.
 
 ## Deploy
 

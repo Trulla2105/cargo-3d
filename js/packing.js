@@ -12,11 +12,6 @@
  */
 function getOrientations(box, allowRotate = true) {
   const { w, d, h, fragile } = box;
-
-  // If the user fixed an orientation (rotated it with R/T before placing),
-  // honor that exact orientation instead of trying all rotations.
-  if (box.lockOrientation) return [{ w, d, h }];
-
   const bases = allowRotate
     ? [
         { w, d, h },    // original
@@ -37,7 +32,7 @@ function getOrientations(box, allowRotate = true) {
   // Deduplicate
   const seen = new Set();
   return bases.filter(o => {
-    const key = [o.w, o.d, o.h].sort().join(',');
+    const key = `${o.w},${o.d},${o.h}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
