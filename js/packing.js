@@ -12,6 +12,11 @@
  */
 function getOrientations(box, allowRotate = true) {
   const { w, d, h, fragile } = box;
+
+  // If the user fixed an orientation (rotated it with R/T before placing),
+  // honor that exact orientation instead of trying all rotations.
+  if (box.lockOrientation) return [{ w, d, h }];
+
   const bases = allowRotate
     ? [
         { w, d, h },    // original

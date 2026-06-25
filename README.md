@@ -115,25 +115,12 @@ cargo-3d/
 | `Ctrl + S` | Guardar proyecto |
 | `G` | Toggle grid |
 | `W` | Toggle wireframe |
+| `R` | Girar la caja seleccionada (W↔D) |
+| `T` | Voltear la caja seleccionada (D↔H) |
 
-### Colocar cajas a mano (drag & drop)
+### Rotar una caja antes de colocarla
 
-**Arrastrá** una caja desde la lista hacia el contenedor (sin soltar el botón). Aparece una **caja fantasma** que sigue al cursor sobre el piso y se apoya automáticamente arriba de lo que haya debajo. Mientras la arrastrás podés **rotarla**, y el color te dice si entra: **verde** = ✓ entra, **rojo** = ✗ no entra (se sale del contenedor o choca con otra caja). Soltás para colocarla.
-
-| Acción | Efecto |
-|--------|--------|
-| Mover el mouse | Reubicar la caja sobre el piso |
-| `R` | Girar 90° (eje vertical) |
-| `T` | Voltear 90° (eje horizontal) |
-| Rueda del mouse | Girar 90° (eje vertical) |
-| Soltar el botón | Colocar la caja (si entra) |
-| `Esc` | Cancelar |
-
-Las colocaciones manuales se guardan junto con el proyecto. **Optimizar** vuelve a acomodar todo automáticamente y reemplaza lo manual.
-
-### Rotación de cajas ya colocadas
-
-Hacé **click** sobre una caja ya colocada para seleccionarla (queda resaltada en naranja) y rotala con `R` (girar) y `T` (voltear). `0` restaura y `Esc` (o click en vacío) deselecciona.
+Hacé **click** en una caja de la lista para seleccionarla y giralá con **`R`** (girar) y **`T`** (voltear). Queda marcada como *orientación fija* y al **Optimizar** el algoritmo la coloca en esa orientación, siempre dentro de los límites del contenedor y apilando como siempre. `Esc` deselecciona.
 
 ---
 

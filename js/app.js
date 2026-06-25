@@ -9,14 +9,12 @@
 
 const state = {
   container: null,
-  boxes: [],        // box types
-  lastResult: null, // last packing result
-  manual: []        // manually drag & drop placed boxes: { id, px,py,pz, qx,qy,qz,qw, w,d,h }
+  boxes: [],       // box types
+  lastResult: null // last packing result
 };
 
-let _listDrag = null; // active drag from the box list
-
 let toastTimer = null;
+let selectedBoxId = null; // box type selected in the list (for rotating with R/T before placing)
 
 // ── PRESETS ───────────────────────────────────────────────────
 
@@ -114,69 +112,36 @@ function addBox() {
   toast(`"${name}" agregada (${qty} u).`, 'success');
 }
 
-// ── DRAG & DROP PLACEMENT FROM THE LIST ───────────────────────
-
-function initListDrag() {
-  const host = document.getElementById('boxList');
-
-  host.addEventListener('pointerdown', e => {
-    if (e.button !== 0) return;
-    const item = e.target.closest('.box-item');
-    if (!item || e.target.closest('button')) return; // ignore the delete button
-    const id = item.dataset.id;
-    const b = state.boxes.find(x => x.id === id);
-    if (!b) return;
-    if (!state.container) { toast('Definí el contenedor primero.', 'error'); return; }
-    if ((b.qty - (b.placed || 0)) <= 0) { toast('No quedan unidades de esa caja.', 'warning'); return; }
-    _listDrag = { id, startX: e.clientX, startY: e.clientY, started: false };
-  });
-
-  window.addEventListener('pointermove', e => {
-    if (!_listDrag) return;
-    if (!_listDrag.started) {
-      const moved = Math.abs(e.clientX - _listDrag.startX) + Math.abs(e.clientY - _listDrag.startY);
-      if (moved < 6) return; // wait for a real drag so plain clicks still work
-      const b = state.boxes.find(x => x.id === _listDrag.id);
-      if (!b || !startDragPlacement(b, state.container)) { _listDrag = null; return; }
-      _listDrag.started = true;
-      toast(`Colocando "${b.name}" — movés con el mouse · R gira y T voltea (o rueda) · soltá para colocar · Esc cancela`, 'info');
-    }
-    updateDragPointer(e.clientX, e.clientY);
-  });
-
-  window.addEventListener('pointerup', () => {
-    if (!_listDrag) return;
-    const wasDragging = _listDrag.started;
-    _listDrag = null;
-    if (!wasDragging) return;
-    finishListDrag();
-  });
-
-  // Mouse wheel rotates the box around the vertical axis while dragging
-  window.addEventListener('wheel', e => {
-    if (!isDraggingPlacement()) return;
-    e.preventDefault();
-    rotateDragBox('y', e.deltaY > 0 ? 90 : -90);
-  }, { passive: false });
-}
-
-function finishListDrag() {
-  const rec = commitDragPlacement();
-  if (!rec) { toast('No se colocó (no entra ahí).', 'warning'); return; }
-  const b = state.boxes.find(x => x.id === rec.id);
-  if (b) b.placed = (b.placed || 0) + 1;
-  state.manual.push(rec);
-  renderBoxList();
-  updateStats();
-  updateHUD();
-  toast('Caja colocada.', 'success');
-}
-
 function removeBoxType(id) {
   state.boxes = state.boxes.filter(b => b.id !== id);
+  if (selectedBoxId === id) selectedBoxId = null;
   renderBoxList();
   updateStats();
   updateBadge();
+}
+
+// ── SELECT + ROTATE A BOX BEFORE PLACING ──────────────────────
+// Click a box in the list to select it, then R/T rotate its orientation.
+// The optimizer will place it (in bounds, stacked) in that fixed orientation.
+
+function selectBoxType(id) {
+  selectedBoxId = (selectedBoxId === id) ? null : id; // toggle
+  renderBoxList();
+  const b = state.boxes.find(x => x.id === selectedBoxId);
+  if (b) setStatus(`"${b.name}" seleccionada — R gira · T voltea`, '#f0883e');
+  else setStatus('Listo');
+}
+
+// axis: 'r' = girar sobre el eje vertical (W↔D) · 't' = voltear (D↔H)
+function rotateSelectedBoxType(axis) {
+  const b = state.boxes.find(x => x.id === selectedBoxId);
+  if (!b) return;
+  if (axis === 'r') { const t = b.w; b.w = b.d; b.d = t; }      // W ↔ D
+  else              { const t = b.d; b.d = b.h; b.h = t; }      // D ↔ H
+  b.lockOrientation = true; // honor this exact orientation when optimizing
+  renderBoxList();
+  updateStats();
+  setStatus(`"${b.name}" → ${b.w}×${b.d}×${b.h} cm`, '#f0883e');
 }
 
 // ── BOX LIST RENDER ───────────────────────────────────────────
@@ -190,14 +155,15 @@ function renderBoxList() {
   host.innerHTML = '';
   state.boxes.forEach(b => {
     const item = document.createElement('div');
-    item.className = 'box-item';
+    item.className = 'box-item' + (b.id === selectedBoxId ? ' selected' : '');
     item.dataset.id = b.id;
-    if ((b.qty - b.placed) > 0) item.classList.add('draggable');
+    item.title = 'Click para seleccionar · R/T para rotar antes de colocar';
 
     const tags = [];
     if (b.fragile === 'yes') tags.push('<span class="tag fragile">frágil</span>');
     if (b.priority === 'high') tags.push('<span class="tag high">alta prioridad</span>');
     if (b.priority === 'low')  tags.push('<span class="tag low">baja prioridad</span>');
+    if (b.lockOrientation) tags.push('<span class="tag rot">↻ orientación fija</span>');
 
     const placedStr = b.placed > 0 ? `<span class="box-placed-badge">${b.placed}/${b.qty}</span>` : '';
 
@@ -216,6 +182,10 @@ function renderBoxList() {
       ${placedStr}
       <button class="box-del" onclick="removeBoxType('${b.id}')" title="Eliminar">×</button>
     `;
+    item.addEventListener('click', e => {
+      if (e.target.closest('.box-del')) return; // don't select when deleting
+      selectBoxType(b.id);
+    });
     host.appendChild(item);
   });
 }
@@ -238,7 +208,6 @@ function optimizeAndPlace() {
   setTimeout(() => {
     removeBoxMeshes();
     state.boxes.forEach(b => b.placed = 0);
-    state.manual = []; // auto-optimize replaces any manual placement
 
     const result = packBoxes(state.boxes, state.container);
     state.lastResult = result;
@@ -332,8 +301,7 @@ function saveProject() {
       id: p.boxData.id,
       x: p.x, y: p.y, z: p.z,
       rw: p.rw, rd: p.rd, rh: p.rh
-    })) || [],
-    manual: state.manual || []
+    })) || []
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -368,28 +336,17 @@ function loadProjectFile(e) {
         updateBadge();
       }
 
-      // Restore placement (auto-optimized + manual drag & drop)
-      removeBoxMeshes();
-      state.boxes.forEach(b => b.placed = 0);
-      state.manual = [];
-
-      (data.placement || []).forEach(p => {
-        const b = state.boxes.find(b => b.id === p.id);
-        if (!b) return;
-        const meshBox = Object.assign({}, b, { w: p.rw, d: p.rd, h: p.rh });
-        placeBoxMesh(meshBox, p.x, p.y, p.z);
-        b.placed = (b.placed || 0) + 1;
-      });
-
-      (data.manual || []).forEach(rec => {
-        const b = state.boxes.find(b => b.id === rec.id);
-        if (!b) return;
-        placeManualBox(b, rec);
-        b.placed = (b.placed || 0) + 1;
-        state.manual.push(rec);
-      });
-
-      renderBoxList();
+      // Restore placement if available
+      if (data.placement?.length) {
+        removeBoxMeshes();
+        data.placement.forEach(p => {
+          const b = state.boxes.find(b => b.id === p.id);
+          if (!b) return;
+          const meshBox = Object.assign({}, b, { w: p.rw, d: p.rd, h: p.rh });
+          placeBoxMesh(meshBox, p.x, p.y, p.z);
+          b.placed = (b.placed || 0) + 1;
+        });
+      }
 
       updateStats();
       updateHUD();
@@ -503,7 +460,6 @@ function wireButtons() {
   document.getElementById('btnClearScene').addEventListener('click', () => {
     removeBoxMeshes();
     state.boxes.forEach(b => b.placed = 0);
-    state.manual = [];
     renderBoxList();
     updateStats();
     toast('Escena limpiada.', 'info');
@@ -516,21 +472,16 @@ function wireButtons() {
 
   // Keyboard shortcuts
   window.addEventListener('keydown', e => {
-    // While dragging a box into the container: rotate it / cancel.
-    if (typeof isDraggingPlacement === 'function' && isDraggingPlacement()) {
+    const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
+
+    // Rotate the selected box before placing it (R = girar, T = voltear).
+    if (selectedBoxId && !typing) {
       const k = e.key.toLowerCase();
-      if (e.key === 'Escape') { cancelDragPlacement(); _listDrag = null; return; }
-      if (k === 'r') { e.preventDefault(); rotateDragBox('y', 90); return; } // girar (eje vertical)
-      if (k === 't') { e.preventDefault(); rotateDragBox('x', 90); return; } // voltear (eje horizontal)
+      if (e.key === 'Escape') { selectedBoxId = null; renderBoxList(); setStatus('Listo'); return; }
+      if (k === 'r') { e.preventDefault(); rotateSelectedBoxType('r'); return; }
+      if (k === 't') { e.preventDefault(); rotateSelectedBoxType('t'); return; }
     }
-    // While a placed box is selected, R/T rotate it (same keys as placement).
-    if (typeof hasSelectedBox === 'function' && hasSelectedBox()) {
-      const k = e.key.toLowerCase();
-      if (e.key === 'Escape') { deselectBox(); return; }
-      if (k === 'r') { e.preventDefault(); rotateSelectedBox('y', 90); return; } // girar (eje vertical)
-      if (k === 't') { e.preventDefault(); rotateSelectedBox('x', 90); return; } // voltear (eje horizontal)
-      if (k === '0') { e.preventDefault(); resetSelectedBoxRotation(); return; }
-    }
+
     if (e.key === 'F5' || (e.ctrlKey && e.key === 'Enter')) {
       e.preventDefault();
       optimizeAndPlace();
@@ -539,8 +490,8 @@ function wireButtons() {
       e.preventDefault();
       saveProject();
     }
-    if (e.key === 'g') toggleGrid();
-    if (e.key === 'w') toggleWireframe();
+    if (e.key === 'g' && !typing) toggleGrid();
+    if (e.key === 'w' && !typing) toggleWireframe();
   });
 }
 
@@ -550,7 +501,6 @@ window.addEventListener('load', () => {
   initThree();
   initMenus();
   initPanelToggle();
-  initListDrag();
   wireButtons();
 
   // Apply default preset

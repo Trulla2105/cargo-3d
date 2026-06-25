@@ -368,7 +368,8 @@ input[type="color"] {
   transition: border-color 0.15s;
 }
 
-.box-item:hover { border-color: var(--border2); }
+.box-item:hover { border-color: var(--border2); cursor: pointer; }
+.box-item.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 
 .box-dot {
   width: 14px;
@@ -419,6 +420,7 @@ input[type="color"] {
 .tag.fragile { background: rgba(255,123,114,0.15); color: var(--red); }
 .tag.high    { background: rgba(240,136,62,0.15); color: var(--accent); }
 .tag.low     { background: rgba(141,150,160,0.15); color: var(--text3); }
+.tag.rot     { background: rgba(240,136,62,0.15); color: var(--accent); }
 
 .box-placed-badge {
   font-family: var(--font-mono);
@@ -446,11 +448,6 @@ input[type="color"] {
   flex-shrink: 0;
 }
 .box-del:hover { background: rgba(255,123,114,0.15); color: var(--red); border-color: var(--red); }
-
-/* Boxes with units left can be dragged into the container */
-.box-item.draggable { cursor: grab; user-select: none; }
-.box-item.draggable:active { cursor: grabbing; }
-.box-item.draggable:hover { border-color: var(--accent); }
 
 /* Stats grid */
 .stats-grid {
