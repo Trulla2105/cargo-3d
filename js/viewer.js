@@ -319,16 +319,16 @@ function _pickInteractive(e) {
   _pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   _pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   _raycaster.setFromCamera(_pointerNDC, camera);
-  const targets = previewMesh ? placedMeshes.concat(previewMesh) : placedMeshes;
-  const hits = _raycaster.intersectObjects(targets, false);
+  const hits = _raycaster.intersectObjects(placedMeshes, false);
   return hits.length ? hits[0].object : null;
 }
 
 function onBoxPointerDown(e) {
   if (e.button !== 0) return; // left button only
+  if (isDraggingPlacement()) return; // a placement drag is in progress; ignore canvas clicks
   const hit = _pickInteractive(e);
   if (hit) {
-    if (hit !== previewMesh) selectBox(hit); // preview ghost is already "active", don't treat as placed box
+    selectBox(hit);
     _activeRotMesh = hit;
     _isRotatingBox = true;
     controls.enabled = false; // stop the camera from orbiting while we rotate the box
@@ -350,7 +350,6 @@ function onBoxPointerMove(e) {
   // Rotate around world axes so the drag feels intuitive from any camera angle.
   _activeRotMesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), dx * f);
   _activeRotMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), dy * f);
-  if (_activeRotMesh === previewMesh) updatePreviewFit();
 }
 
 function onBoxPointerUp(e) {
