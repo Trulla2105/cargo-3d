@@ -123,8 +123,9 @@ cargo-3d/
 | Acción | Efecto |
 |--------|--------|
 | Mover el mouse | Reubicar la caja sobre el piso |
-| Rueda del mouse | Rotar 90° sobre el eje vertical |
-| `X` / `Y` / `Z` (o `R`) | Rotar 90° sobre cada eje |
+| `R` | Girar 90° (eje vertical) |
+| `T` | Voltear 90° (eje horizontal) |
+| Rueda del mouse | Girar 90° (eje vertical) |
 | Soltar el botón | Colocar la caja (si entra) |
 | `Esc` | Cancelar |
 
@@ -132,7 +133,7 @@ Las colocaciones manuales se guardan junto con el proyecto. **Optimizar** vuelve
 
 ### Rotación de cajas ya colocadas
 
-Hacé **click** sobre una caja ya colocada para seleccionarla (queda resaltada en naranja) y rotala con el mouse o con `X` / `Y` / `Z`. `0` restaura y `Esc` (o click en vacío) deselecciona.
+Hacé **click** sobre una caja ya colocada para seleccionarla (queda resaltada en naranja) y rotala con `R` (girar) y `T` (voltear). `0` restaura y `Esc` (o click en vacío) deselecciona.
 
 ---
 

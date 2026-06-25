@@ -139,7 +139,7 @@ function initListDrag() {
       const b = state.boxes.find(x => x.id === _listDrag.id);
       if (!b || !startDragPlacement(b, state.container)) { _listDrag = null; return; }
       _listDrag.started = true;
-      toast(`Colocando "${b.name}" — movés con el mouse · rueda o X/Y/Z rotan · soltá para colocar · Esc cancela`, 'info');
+      toast(`Colocando "${b.name}" — movés con el mouse · R gira y T voltea (o rueda) · soltá para colocar · Esc cancela`, 'info');
     }
     updateDragPointer(e.clientX, e.clientY);
   });
@@ -520,17 +520,15 @@ function wireButtons() {
     if (typeof isDraggingPlacement === 'function' && isDraggingPlacement()) {
       const k = e.key.toLowerCase();
       if (e.key === 'Escape') { cancelDragPlacement(); _listDrag = null; return; }
-      if (k === 'x') { e.preventDefault(); rotateDragBox('x', 90); return; }
-      if (k === 'y' || k === 'r') { e.preventDefault(); rotateDragBox('y', 90); return; }
-      if (k === 'z') { e.preventDefault(); rotateDragBox('z', 90); return; }
+      if (k === 'r') { e.preventDefault(); rotateDragBox('y', 90); return; } // girar (eje vertical)
+      if (k === 't') { e.preventDefault(); rotateDragBox('x', 90); return; } // voltear (eje horizontal)
     }
-    // While a placed box is selected, the X/Y/Z/0/Esc keys rotate it in the air.
+    // While a placed box is selected, R/T rotate it (same keys as placement).
     if (typeof hasSelectedBox === 'function' && hasSelectedBox()) {
       const k = e.key.toLowerCase();
       if (e.key === 'Escape') { deselectBox(); return; }
-      if (k === 'x') { e.preventDefault(); rotateSelectedBox('x', 90); return; }
-      if (k === 'y') { e.preventDefault(); rotateSelectedBox('y', 90); return; }
-      if (k === 'z') { e.preventDefault(); rotateSelectedBox('z', 90); return; }
+      if (k === 'r') { e.preventDefault(); rotateSelectedBox('y', 90); return; } // girar (eje vertical)
+      if (k === 't') { e.preventDefault(); rotateSelectedBox('x', 90); return; } // voltear (eje horizontal)
       if (k === '0') { e.preventDefault(); resetSelectedBoxRotation(); return; }
     }
     if (e.key === 'F5' || (e.ctrlKey && e.key === 'Enter')) {
