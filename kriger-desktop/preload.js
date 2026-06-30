@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld('api', {
   dbInfo: () => ipcRenderer.invoke('db:info'),
   openDbFolder: () => ipcRenderer.invoke('db:openFolder'),
   pickExcel: () => ipcRenderer.invoke('excel:pick'),
-  importExcel: (filePath) => ipcRenderer.invoke('excel:import', filePath)
+  importExcel: (filePath) => ipcRenderer.invoke('excel:import', filePath),
+  viewerInfo: () => ipcRenderer.invoke('viewer:info')
 });

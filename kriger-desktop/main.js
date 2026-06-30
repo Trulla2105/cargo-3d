@@ -6,6 +6,9 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const db = require('./db');
 const importExcel = require('./import-excel');
+const viewerServer = require('./viewer-server');
+let QRCode = null;
+try { QRCode = require('qrcode'); } catch (e) { /* opcional */ }
 
 let win = null;
 
@@ -37,6 +40,10 @@ app.whenReady().then(async () => {
   const dbPath = path.join(dataDir(), 'kriger.sqlite');
   const backupDir = path.join(dataDir(), 'copias-de-seguridad');
   await db.init(dbPath, backupDir);
+
+  // Visor de solo lectura para el celular (misma red WiFi).
+  try { await viewerServer.start(() => db.loadStore(), 7777); }
+  catch (e) { console.warn('No se pudo iniciar el visor:', e); }
 
   await createWindow();
 
@@ -85,6 +92,16 @@ ipcMain.handle('db:openFolder', async () => {
   const i = db.info();
   shell.showItemInFolder(i.dbPath);
   return { ok: true };
+});
+
+// Datos del visor de celular (dirección + QR).
+ipcMain.handle('viewer:info', async () => {
+  const i = viewerServer.info();
+  let qr = '';
+  if (i.url && QRCode) {
+    try { qr = await QRCode.toDataURL(i.url, { margin: 1, width: 220 }); } catch (e) {}
+  }
+  return { url: i.url, ip: i.ip, port: i.port, qr };
 });
 
 // Elegir el Excel y leerlo (sin importar todavía): devuelve un resumen.

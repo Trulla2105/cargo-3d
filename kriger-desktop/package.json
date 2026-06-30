@@ -18,6 +18,7 @@
     "dist:dir": "electron-builder --dir"
   },
   "dependencies": {
+    "qrcode": "^1.5.4",
     "sql.js": "^1.10.3",
     "xlsx": "^0.18.5"
   },
@@ -30,12 +31,9 @@
     "productName": "Kriger",
     "publish": null,
     "files": [
-      "main.js",
-      "preload.js",
-      "db.js",
-      "renderer/**",
-      "assets/**",
-      "node_modules/sql.js/dist/sql-wasm.wasm"
+      "**/*",
+      "!**/*.xlsm",
+      "!test-db.js"
     ],
     "asarUnpack": [
       "node_modules/sql.js/dist/sql-wasm.wasm"

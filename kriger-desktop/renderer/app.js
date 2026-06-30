@@ -558,14 +558,30 @@ $('#cs_del').addEventListener('click', () => {
 $('#gearBtn').addEventListener('click', () => {
   $('#cfg_frente').value = fmtP(store.config.saldoFrente); $('#cfg_fondo').value = fmtP(store.config.saldoFondo);
   $('#cfg_pin').value = store.config.fondoPin || '';
-  renderCfgCajeros(); $('#ovCfg').classList.add('on');
+  $('#cfg_viewerPin').value = store.config.viewerPin || '';
+  renderCfgCajeros(); loadViewerInfo(); $('#ovCfg').classList.add('on');
 });
+async function loadViewerInfo() {
+  const el = $('#viewerInfo');
+  try {
+    const i = await window.api.viewerInfo();
+    if (i && i.url) {
+      el.innerHTML = (i.qr ? `<img src="${i.qr}" alt="QR" style="width:170px;height:170px">` : '') +
+        `<div style="font-size:13px;margin-top:6px">En el celular, abrí esta dirección:<br><b>${esc(i.url)}</b></div>`;
+    } else {
+      el.innerHTML = '<p class="muted" style="font-size:12px">El visor no está disponible en este momento.</p>';
+    }
+  } catch (e) {
+    el.innerHTML = '<p class="muted" style="font-size:12px">El visor no está disponible en este momento.</p>';
+  }
+}
 function renderCfgCajeros() { $('#cfg_cajeros').innerHTML = store.config.cajeros.map(c => `<span class="pill" style="font-size:13px;padding:5px 10px">${esc(c)} <b data-rmcaj="${esc(c)}" style="cursor:pointer;color:var(--bad);margin-left:4px">×</b></span>`).join('') || '<span class="muted" style="font-size:13px">Ninguno</span>'; }
 $('#cfg_cajeros').addEventListener('click', e => { const b = e.target.closest('[data-rmcaj]'); if (!b) return; store.config.cajeros = store.config.cajeros.filter(c => c !== b.dataset.rmcaj); renderCfgCajeros(); });
 $('#cfg_addCaj').addEventListener('click', () => { const n = $('#cfg_nuevoCaj').value.trim(); if (n && !store.config.cajeros.includes(n)) store.config.cajeros.push(n); $('#cfg_nuevoCaj').value = ''; renderCfgCajeros(); });
 $('#cfg_save').addEventListener('click', () => {
   store.config.saldoFrente = pm($('#cfg_frente').value); store.config.saldoFondo = pm($('#cfg_fondo').value);
   store.config.fondoPin = $('#cfg_pin').value.trim();
+  store.config.viewerPin = $('#cfg_viewerPin').value.trim();
   persist(); $('#ovCfg').classList.remove('on'); renderHome();
 });
 $('#cfg_backup').addEventListener('click', async () => {
