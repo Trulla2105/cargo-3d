@@ -38,7 +38,17 @@ function efecto(m) {
 }
 function saldoHasta(caja, beforeDate) { let s = store.config['saldo' + (caja === 'frente' ? 'Frente' : 'Fondo')] || 0; store.movs.forEach(m => { if (!beforeDate || m.fecha < beforeDate) s += efecto(m)[caja]; }); return s; }
 function saldoActual(caja) { let s = store.config['saldo' + (caja === 'frente' ? 'Frente' : 'Fondo')] || 0; store.movs.forEach(m => s += efecto(m)[caja]); return s; }
-function ventaDe(date) { return store.movs.filter(m => m.t === 'venta' && m.fecha === date).reduce((a, m) => a + pm(m.monto), 0); }
+// "Venta del día" = plata que REALMENTE entró ese día.
+// Las ventas en cuenta corriente NO cuentan hasta que el cliente paga; cada
+// pago (aunque sea parcial) suma a la venta del día en que se hizo.
+function ventaRealizada(m) { return m.t === 'venta' && m.medio !== 'cta corriente'; }
+function ventaDe(date) {
+  return store.movs.reduce((a, m) => {
+    if (m.fecha !== date) return a;
+    if (ventaRealizada(m) || m.t === 'pago') return a + pm(m.monto);
+    return a;
+  }, 0);
+}
 
 const TITLES = { cargar: 'Cargar', movs: 'Movimientos', cierre: 'Cierre del día', ventas: 'Ventas', clientes: 'Clientes', estad: 'Estadísticas' };
 function show(view) {
@@ -172,8 +182,12 @@ function renderCierre() {
   const efTot = ventas.filter(v => v.medio === 'efectivo').reduce((a, v) => a + pm(v.monto), 0);
   const transf = ventas.filter(v => v.medio === 'transferencia');
   const cheques = ventas.filter(v => v.medio === 'cheque');
-  const otras = ventas.filter(v => !['efectivo', 'transferencia', 'cheque'].includes(v.medio));
-  const ventaTotal = ventas.reduce((a, v) => a + pm(v.monto), 0);
+  const otras = ventas.filter(v => !['efectivo', 'transferencia', 'cheque', 'cta corriente'].includes(v.medio));
+  const ctaCte = ventas.filter(v => v.medio === 'cta corriente');
+  const pagos = movs.filter(m => m.t === 'pago');
+  const pagosTot = pagos.reduce((a, p) => a + pm(p.monto), 0);
+  // Venta del día = lo realmente cobrado: ventas que no son cuenta corriente + pagos recibidos.
+  const ventaTotal = ventas.filter(v => v.medio !== 'cta corriente').reduce((a, v) => a + pm(v.monto), 0) + pagosTot;
   const gastos = movs.filter(m => m.t === 'gasto');
   const movers = movs.filter(m => m.t === 'mover');
   const arq = store.arqueos[date] || {};
@@ -220,6 +234,8 @@ function renderCierre() {
       <div class="ln"><span>Cheques</span><span class="v">${fmt(cheques.reduce((a, v) => a + pm(v.monto), 0))}</span></div>
       ${cheques.map(v => `<div class="ln sub"><span>${esc(v.cliente || 'sin nombre')}</span><span class="v">${fmt(pm(v.monto))}</span></div>`).join('')}
       ${otras.length ? '<div class="rule"></div>' + otras.map(v => `<div class="ln sub"><span>${esc(v.medio)} · ${esc(v.cliente || '')}</span><span class="v">${fmt(pm(v.monto))}</span></div>`).join('') : ''}
+      ${pagosTot ? `<div class="rule"></div><div class="ln"><span>Cobrado de cuenta corriente</span><span class="v">${fmt(pagosTot)}</span></div>` + pagos.map(p => `<div class="ln sub"><span>${esc(p.cliente || 'sin nombre')}</span><span class="v">${fmt(pm(p.monto))}</span></div>`).join('') : ''}
+      ${ctaCte.length ? `<div class="rule"></div><div class="ln"><span class="muted">Entregado a cta cte <span style="font-weight:400">(a cobrar · no suma)</span></span><span class="v muted">${fmt(ctaCte.reduce((a, v) => a + pm(v.monto), 0))}</span></div>` + ctaCte.map(v => `<div class="ln sub"><span>${esc(v.cliente || 'sin nombre')}${v.remito ? ' · remito ' + esc(v.remito) : ''}</span><span class="v">${fmt(pm(v.monto))}</span></div>`).join('') : ''}
     </div>
     ${gastos.length ? `<div class="card"><div class="lbl" style="margin-bottom:8px">Gastos del día</div>
       ${gastos.map(g => `<div class="ln"><span>${esc(g.concepto)}</span><span class="v">${fmt(pm(g.frente) + pm(g.fondo))}</span></div>`).join('')}</div>` : ''}
@@ -247,8 +263,10 @@ function renderVentas() {
     if (mes && mesKey(m.fecha) !== mes) return false;
     if (q && !(norm(m.cliente).includes(q) || norm(m.nota).includes(q) || norm(m.cajero).includes(q))) return false; return true;
   }).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.id.localeCompare(a.id));
-  const tot = rows.reduce((a, v) => a + pm(v.monto), 0);
-  $('#ventasTable').innerHTML = rows.length ? `<div class="ln" style="margin-bottom:4px"><span class="muted" style="font-size:12px">${rows.length} ventas</span><span style="font-weight:700" class="tabnum">${fmt(tot)}</span></div>
+  const cobrado = rows.filter(v => v.medio !== 'cta corriente').reduce((a, v) => a + pm(v.monto), 0);
+  const aCobrar = rows.filter(v => v.medio === 'cta corriente').reduce((a, v) => a + pm(v.monto), 0);
+  $('#ventasTable').innerHTML = rows.length ? `<div class="ln" style="margin-bottom:4px"><span class="muted" style="font-size:12px">${rows.length} ventas · cobrado</span><span style="font-weight:700" class="tabnum">${fmt(cobrado)}</span></div>
+    ${aCobrar ? `<div class="ln" style="margin-bottom:8px"><span class="muted" style="font-size:12px">A cobrar (cta cte)</span><span class="tabnum" style="color:var(--bad);font-weight:600">${fmt(aCobrar)}</span></div>` : ''}
     <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th class="num">Total</th><th></th></tr></thead><tbody>
     ${rows.map(v => `<tr><td>${fDate(v.fecha)}<div class="muted" style="font-size:11px">${esc(v.cajero || '')}</div></td>
       <td>${esc(v.cliente) || '<span class="muted">—</span>'}${v.nota ? `<div class="muted" style="font-size:11px">${esc(v.nota)}</div>` : ''}</td>
@@ -282,7 +300,7 @@ function renderMovs() {
   rows.forEach(m => { if (!map[m.fecha]) { map[m.fecha] = []; dias.push(m.fecha); } map[m.fecha].push(m); });
   $('#movsTable').innerHTML = dias.map(f => {
     const ms = map[f];
-    const venta = ms.filter(m => m.t === 'venta').reduce((a, m) => a + pm(m.monto), 0);
+    const venta = ventaDe(f);
     return `<div class="card" style="margin-bottom:12px">
       <div class="ln" style="border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:2px">
         <span style="font-weight:700">${fDate(f)}</span>
@@ -359,26 +377,30 @@ $('#cli_pagoBtn').addEventListener('click', () => {
 
 function renderEstad() {
   const now = today().slice(0, 7);
-  const mesV = store.movs.filter(m => m.t === 'venta' && mesKey(m.fecha) === now);
+  // Ingreso = plata cobrada: ventas que no son cuenta corriente + pagos recibidos (los pagos entran como efectivo).
+  const esIngreso = m => (m.t === 'venta' && m.medio !== 'cta corriente') || m.t === 'pago';
+  const medioDe = m => m.t === 'pago' ? 'efectivo' : m.medio;
+  const mesV = store.movs.filter(m => esIngreso(m) && mesKey(m.fecha) === now);
   const t = mesV.reduce((a, v) => a + pm(v.monto), 0);
-  const ef = mesV.filter(v => v.medio === 'efectivo').reduce((a, v) => a + pm(v.monto), 0);
+  const ef = mesV.filter(v => medioDe(v) === 'efectivo').reduce((a, v) => a + pm(v.monto), 0);
+  const nVentas = mesV.filter(m => m.t === 'venta').length;
   $('#es_stats').innerHTML = `
     <div><div class="lbl">Total mes</div><div style="font-size:24px;font-weight:700" class="tabnum">${fmt(t)}</div></div>
-    <div><div class="lbl">Ventas</div><div style="font-size:24px;font-weight:700" class="tabnum">${mesV.length}</div></div>
+    <div><div class="lbl">Ventas</div><div style="font-size:24px;font-weight:700" class="tabnum">${nVentas}</div></div>
     <div><div class="lbl">Efectivo</div><div style="font-size:20px;font-weight:700" class="tabnum">${fmt(ef)}</div></div>
     <div><div class="lbl">Otros medios</div><div style="font-size:20px;font-weight:700" class="tabnum">${fmt(t - ef)}</div></div>`;
   fillMes('#es_mes'); if (!$('#es_mes').value) $('#es_mes').value = now;
   const selMes = $('#es_mes').value || now;
-  const dias = {}; store.movs.filter(m => m.t === 'venta' && mesKey(m.fecha) === selMes).forEach(v => { (dias[v.fecha] = dias[v.fecha] || { ef: 0, tr: 0, ch: 0, t: 0, n: 0 }); const d = dias[v.fecha]; d.t += pm(v.monto); d.n++; if (v.medio === 'efectivo') d.ef += pm(v.monto); else if (v.medio === 'transferencia') d.tr += pm(v.monto); else if (v.medio === 'cheque') d.ch += pm(v.monto); });
+  const dias = {}; store.movs.filter(m => esIngreso(m) && mesKey(m.fecha) === selMes).forEach(v => { (dias[v.fecha] = dias[v.fecha] || { ef: 0, tr: 0, ch: 0, t: 0, n: 0 }); const d = dias[v.fecha]; const me = medioDe(v); d.t += pm(v.monto); if (v.t === 'venta') d.n++; if (me === 'efectivo') d.ef += pm(v.monto); else if (me === 'transferencia') d.tr += pm(v.monto); else if (me === 'cheque') d.ch += pm(v.monto); });
   const orden = Object.keys(dias).sort().reverse();
   $('#es_diario').innerHTML = orden.length ? `<table><thead><tr><th>Día</th><th class="num">Efvo</th><th class="num">Transf</th><th class="num">Total</th></tr></thead><tbody>
     ${orden.map(f => `<tr><td>${fDate(f)}<div class="muted" style="font-size:11px">${dias[f].n} vta${dias[f].n > 1 ? 's' : ''}</div></td>
       <td class="num">${fmt(dias[f].ef)}</td><td class="num">${fmt(dias[f].tr)}</td><td class="num"><b>${fmt(dias[f].t)}</b></td></tr>`).join('')}</tbody></table>`
     : '<div class="empty">Sin ventas ese mes.</div>';
-  const years = [...new Set(store.movs.filter(m => m.t === 'venta').map(m => m.fecha && m.fecha.slice(0, 4)).filter(Boolean))].sort();
+  const years = [...new Set(store.movs.filter(esIngreso).map(m => m.fecha && m.fecha.slice(0, 4)).filter(Boolean))].sort();
   if (!years.length) { $('#es_mensual').innerHTML = '<div class="empty">Sin datos.</div>'; return; }
   const M = {}; years.forEach(y => M[y] = Array(12).fill(0));
-  store.movs.filter(m => m.t === 'venta').forEach(v => { if (!v.fecha) return; const y = v.fecha.slice(0, 4), mi = +v.fecha.slice(5, 7) - 1; if (M[y]) M[y][mi] += pm(v.monto); });
+  store.movs.filter(esIngreso).forEach(v => { if (!v.fecha) return; const y = v.fecha.slice(0, 4), mi = +v.fecha.slice(5, 7) - 1; if (M[y]) M[y][mi] += pm(v.monto); });
   $('#es_mensual').innerHTML = `<table><thead><tr><th>Mes</th>${years.map(y => `<th class="num">${y}</th>`).join('')}</tr></thead><tbody>
     ${MESES.map((mn, i) => `<tr><td>${mn.slice(0, 3)}</td>${years.map(y => `<td class="num">${M[y][i] ? fmt(M[y][i]) : '<span style="color:var(--line)">—</span>'}</td>`).join('')}</tr>`).join('')}
     <tr style="font-weight:700"><td>Total</td>${years.map(y => `<td class="num">${fmt(M[y].reduce((a, x) => a + x, 0))}</td>`).join('')}</tr></tbody></table>`;
