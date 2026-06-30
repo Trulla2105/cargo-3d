@@ -98,6 +98,7 @@ let curTipo = 'venta', curMedio = 'efectivo', curCaja = 'frente', curDir = 'aFon
 function renderCargar() {
   $('#ve_fecha').value = $('#ga_fecha').value = $('#mo_fecha').value = today();
   $('#ve_medios').innerHTML = MEDIOS.map(([v, l]) => `<button class="chip med${v === curMedio ? ' on' : ''}" data-med="${v}">${l}</button>`).join('');
+  $('#ve_remito_wrap').classList.toggle('hide', curMedio !== 'cta corriente');
   refreshClientesDL(); renderUltimos();
 }
 function selTipo(t) {
@@ -105,7 +106,7 @@ function selTipo(t) {
   $('#form-venta').classList.toggle('hide', t !== 'venta'); $('#form-gasto').classList.toggle('hide', t !== 'gasto'); $('#form-mover').classList.toggle('hide', t !== 'mover');
 }
 $$('[data-tipo]').forEach(c => c.addEventListener('click', () => selTipo(c.dataset.tipo)));
-$('#ve_medios').addEventListener('click', e => { const b = e.target.closest('[data-med]'); if (!b) return; curMedio = b.dataset.med; $$('#ve_medios .chip').forEach(c => c.classList.toggle('on', c.dataset.med === curMedio)); });
+$('#ve_medios').addEventListener('click', e => { const b = e.target.closest('[data-med]'); if (!b) return; curMedio = b.dataset.med; $$('#ve_medios .chip').forEach(c => c.classList.toggle('on', c.dataset.med === curMedio)); $('#ve_remito_wrap').classList.toggle('hide', curMedio !== 'cta corriente'); });
 $$('#form-gasto [data-caja]').forEach(c => c.addEventListener('click', () => { curCaja = c.dataset.caja; $$('#form-gasto [data-caja]').forEach(x => x.classList.toggle('on', x.dataset.caja === curCaja)); $('#ga_single').classList.toggle('hide', curCaja === 'div'); $('#ga_split').classList.toggle('hide', curCaja !== 'div'); }));
 $$('#form-mover [data-dir]').forEach(c => c.addEventListener('click', () => { curDir = c.dataset.dir; $$('#form-mover [data-dir]').forEach(x => x.classList.toggle('on', x.dataset.dir === curDir)); }));
 document.addEventListener('input', e => { if (e.target.id === 'ga_frente' || e.target.id === 'ga_fondo') $('#ga_total').textContent = fmt(pm($('#ga_frente').value) + pm($('#ga_fondo').value)); });
@@ -116,8 +117,9 @@ function ensureCliente(nombre) { const k = norm(nombre); if (!k) return null; if
 $('#ve_save').addEventListener('click', () => {
   const monto = pm($('#ve_monto').value); if (!monto) return $('#ve_monto').focus();
   const cli = $('#ve_cliente').value.trim(); if (cli) ensureCliente(cli);
-  store.movs.push({ id: uid(), t: 'venta', fecha: $('#ve_fecha').value || today(), cajero: store.cajeroActual, monto, medio: curMedio, cliente: cli, contacto: $('#ve_contacto').value, nota: $('#ve_nota').value.trim() });
-  $('#ve_monto').value = ''; $('#ve_cliente').value = ''; $('#ve_nota').value = '';
+  const remito = curMedio === 'cta corriente' ? $('#ve_remito').value.trim() : '';
+  store.movs.push({ id: uid(), t: 'venta', fecha: $('#ve_fecha').value || today(), cajero: store.cajeroActual, monto, medio: curMedio, cliente: cli, contacto: $('#ve_contacto').value, nota: $('#ve_nota').value.trim(), remito });
+  $('#ve_monto').value = ''; $('#ve_cliente').value = ''; $('#ve_nota').value = ''; $('#ve_remito').value = '';
   persist(); refreshClientesDL(); renderUltimos(); toast('Venta guardada');
 });
 $('#ga_save').addEventListener('click', () => {
@@ -138,7 +140,7 @@ $('#mo_save').addEventListener('click', () => {
 
 function pillC(m) { return m === 'efectivo' ? 'ef' : m === 'transferencia' ? 'tr' : m === 'cheque' ? 'ch' : m === 'cta corriente' ? 'cc' : ''; }
 function movLabel(m) {
-  if (m.t === 'venta') return { pill: pillC(m.medio), txt: m.medio, desc: (m.cliente || '') + (m.nota ? ' · ' + m.nota : ''), amt: pm(m.monto), sign: '' };
+  if (m.t === 'venta') return { pill: pillC(m.medio), txt: m.medio, desc: (m.cliente || '') + (m.remito ? ' · remito ' + m.remito : '') + (m.nota ? ' · ' + m.nota : ''), amt: pm(m.monto), sign: '' };
   if (m.t === 'pago') return { pill: 'ef', txt: 'pago', desc: m.cliente || '', amt: pm(m.monto), sign: '' };
   if (m.t === 'gasto') return { pill: 'ga', txt: 'gasto', desc: m.concepto + (pm(m.frente) && pm(m.fondo) ? ` (mostr ${fmtP(pm(m.frente))} / fondo ${fmtP(pm(m.fondo))})` : ''), amt: pm(m.frente) + pm(m.fondo), sign: '-' };
   if (m.t === 'mover') return { pill: 'mo', txt: 'mover', desc: m.dir === 'aFondo' ? 'mostrador → fondo' : 'fondo → mostrador', amt: pm(m.monto), sign: '' };
@@ -336,7 +338,7 @@ function renderCliMovs(key) {
   $('#cli_ccamt').textContent = s.saldoCC > 0.5 ? fmt(s.saldoCC) + ' debe' : (s.saldoCC < -0.5 ? fmt(-s.saldoCC) + ' a favor' : '$ 0');
   const ms = store.movs.filter(m => norm(m.cliente) === key && (m.t === 'venta' || m.t === 'pago')).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   $('#cli_movs').innerHTML = ms.length ? `<table><tbody>${ms.map(m => `<tr><td>${fDate(m.fecha)}</td>
-    <td>${m.t === 'pago' ? '<span class="pill ef">pago</span>' : '<span class="pill ' + pillC(m.medio) + '">' + esc(m.medio) + '</span>'}${m.nota ? ' ' + esc(m.nota) : ''}</td>
+    <td>${m.t === 'pago' ? '<span class="pill ef">pago</span>' : '<span class="pill ' + pillC(m.medio) + '">' + esc(m.medio) + '</span>'}${m.remito ? ' <span class="muted">remito ' + esc(m.remito) + '</span>' : ''}${m.nota ? ' ' + esc(m.nota) : ''}</td>
     <td class="num">${m.t === 'pago' ? '−' : ''}${fmt(pm(m.monto))}</td>
     <td><button class="tdel" data-delm="${m.id}">×</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Sin movimientos.</div>';
 }

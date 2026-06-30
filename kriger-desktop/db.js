@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS movimientos (
   cliente  TEXT,
   contacto TEXT,
   nota     TEXT,
+  remito   TEXT,                 -- venta en cuenta corriente: N° de remito
   concepto TEXT,                 -- gasto
   frente   REAL DEFAULT 0,       -- gasto: parte que sale del mostrador
   fondo    REAL DEFAULT 0,       -- gasto: parte que sale del fondo
@@ -95,13 +96,13 @@ function loadStore() {
   }
 
   // movimientos
-  const mv = db.exec('SELECT id,tipo,fecha,cajero,monto,medio,cliente,contacto,nota,concepto,frente,fondo,dir FROM movimientos');
+  const mv = db.exec('SELECT id,tipo,fecha,cajero,monto,medio,cliente,contacto,nota,concepto,frente,fondo,dir,remito FROM movimientos');
   if (mv.length) {
     for (const r of mv[0].values) {
       const m = {
         id: r[0], t: r[1], fecha: r[2], cajero: r[3],
         monto: num(r[4]), medio: r[5], cliente: r[6], contacto: r[7],
-        nota: r[8], concepto: r[9], frente: num(r[10]), fondo: num(r[11]), dir: r[12]
+        nota: r[8], concepto: r[9], frente: num(r[10]), fondo: num(r[11]), dir: r[12], remito: r[13]
       };
       // limpiar campos nulos para que se parezca al objeto original
       Object.keys(m).forEach(k => { if (m[k] === null) delete m[k]; });
@@ -149,12 +150,12 @@ function saveStore(store) {
 
     // movimientos (borrar y volver a escribir: simple y seguro para 1 usuario)
     db.run('DELETE FROM movimientos');
-    const insMov = db.prepare('INSERT INTO movimientos(id,tipo,fecha,cajero,monto,medio,cliente,contacto,nota,concepto,frente,fondo,dir) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    const insMov = db.prepare('INSERT INTO movimientos(id,tipo,fecha,cajero,monto,medio,cliente,contacto,nota,concepto,frente,fondo,dir,remito) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
     for (const m of (store.movs || [])) {
       insMov.run([
         m.id, m.t, m.fecha, m.cajero || null,
         num(m.monto), m.medio || null, m.cliente || null, m.contacto || null,
-        m.nota || null, m.concepto || null, num(m.frente), num(m.fondo), m.dir || null
+        m.nota || null, m.concepto || null, num(m.frente), num(m.fondo), m.dir || null, m.remito || null
       ]);
     }
     insMov.free();
