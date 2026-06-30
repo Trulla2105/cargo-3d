@@ -73,6 +73,10 @@
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19V11M12 19V5M19 19v-6"/></svg>
         <span class="t">Estadísticas</span><span class="d">Mensual y por día</span>
       </button>
+      <button class="mbtn" data-go="cheques">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 14h4"/></svg>
+        <span class="t">Cheques</span><span class="d">Cartera y salidas</span>
+      </button>
     </div>
   </section>
 
@@ -97,6 +101,7 @@
           <div class="ff"><label class="fl">Fecha</label><input type="date" id="ve_fecha"></div>
         </div>
         <div class="ff hide" id="ve_remito_wrap"><label class="fl">N° de remito</label><input id="ve_remito" placeholder="Número de remito"></div>
+        <div class="ff hide" id="ve_cheques_wrap"><label class="fl">Cheques</label><button class="btn gh" type="button" id="ve_cheques_btn">+ Cargar cheques</button></div>
         <div class="ff"><label class="fl">Nota <span class="muted" style="text-transform:none;letter-spacing:0">(opcional)</span></label><input id="ve_nota" placeholder="Prenda, talle, detalle…"></div>
         <button class="btn pri" id="ve_save">Guardar venta</button>
       </div>
@@ -186,6 +191,22 @@
     <div class="card"><div class="lbl" style="margin-bottom:10px">Mensual por año</div><div id="es_mensual"></div></div>
   </section>
 
+  <!-- CHEQUES -->
+  <section id="v-cheques" class="hide">
+    <div class="top3">
+      <div class="topbox venta"><span class="swipe"></span><div class="lbl">En cartera</div><div class="amt" id="chq_cartera">$ 0</div></div>
+      <div class="topbox"><div class="lbl">Cobrados</div><div class="amt tabnum" id="chq_cobrados">$ 0</div></div>
+      <div class="topbox"><div class="lbl">Entregados</div><div class="amt tabnum" id="chq_entregados">$ 0</div></div>
+    </div>
+    <div class="seg c2" style="grid-template-columns:1fr 1fr 1fr 1fr">
+      <button class="chip on" data-chf="cartera">En cartera</button>
+      <button class="chip" data-chf="cobrado">Cobrados</button>
+      <button class="chip" data-chf="entregado">Entregados</button>
+      <button class="chip" data-chf="todos">Todos</button>
+    </div>
+    <div class="card" id="chequesTable"></div>
+  </section>
+
 </div>
 
 <div class="ov" id="ovCfg"><div class="modal">
@@ -222,6 +243,29 @@
   <div class="fr2"><input id="cli_pago" class="money" inputmode="decimal" placeholder="Monto del pago"><button class="btn gh" id="cli_pagoBtn">Registrar pago</button></div>
   <div class="lbl" style="margin-top:14px">Movimientos</div><div id="cli_movs"></div>
   <div style="display:flex;gap:8px;margin-top:16px"><button class="btn pri" id="cli_save" style="flex:1">Guardar</button><button class="btn gh" id="cli_del" style="width:auto;color:var(--bad)">Eliminar</button></div>
+</div></div>
+
+<div class="ov" id="ovCheques"><div class="modal">
+  <button class="x" data-close>×</button><h3>Cheques de la venta</h3>
+  <p class="muted" style="font-size:13px;margin-bottom:10px">Cargá uno o varios cheques (N°, vencimiento y monto).</p>
+  <div id="chq_rows"></div>
+  <button class="btn gh sm" id="chq_add" style="margin-top:6px">+ Agregar cheque</button>
+  <div class="ln" style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><span>Total en cheques</span><span class="v" id="chq_total">$ 0</span></div>
+  <button class="btn pri" id="chq_done" style="margin-top:14px">Listo</button>
+</div></div>
+
+<div class="ov" id="ovChqSalida"><div class="modal">
+  <button class="x" data-close>×</button><h3>Cheque <span id="cs_num"></span></h3>
+  <div class="muted" id="cs_info" style="font-size:13.5px;margin-top:4px"></div>
+  <label class="fl" style="margin-top:14px">¿Qué se hizo con el cheque?</label>
+  <div class="seg c3">
+    <button class="chip" data-cs="cartera">En cartera</button>
+    <button class="chip" data-cs="cobrado">Cobrado</button>
+    <button class="chip" data-cs="entregado">Entregado</button>
+  </div>
+  <div class="ff hide" id="cs_entregado_wrap"><label class="fl">¿A quién se lo diste?</label><input id="cs_aquien" placeholder="Nombre del tercero / proveedor"></div>
+  <div class="ff" id="cs_fecha_wrap"><label class="fl">Fecha</label><input type="date" id="cs_fecha"></div>
+  <div style="display:flex;gap:8px;margin-top:8px"><button class="btn pri" id="cs_save" style="flex:1">Guardar</button><button class="btn gh" id="cs_del" style="width:auto;color:var(--bad)">Eliminar</button></div>
 </div></div>
 
 <div class="toast" id="toast"></div>

@@ -42,6 +42,18 @@ CREATE TABLE IF NOT EXISTS arqueos (
   frente TEXT,
   fondo  TEXT
 );
+CREATE TABLE IF NOT EXISTS cheques (
+  id            TEXT PRIMARY KEY,
+  ventaId       TEXT,            -- venta de la que vino
+  numero        TEXT,            -- N° de cheque
+  monto         REAL DEFAULT 0,
+  vencimiento   TEXT,            -- YYYY-MM-DD
+  fecha         TEXT,            -- ingreso (fecha de la venta)
+  cliente       TEXT,
+  estado        TEXT,            -- cartera | cobrado | entregado
+  salidaDetalle TEXT,            -- a quién se entregó / nota
+  salidaFecha   TEXT
+);
 CREATE INDEX IF NOT EXISTS idx_mov_fecha ON movimientos(fecha);
 CREATE INDEX IF NOT EXISTS idx_mov_tipo  ON movimientos(tipo);
 `;
@@ -79,7 +91,8 @@ function loadStore() {
     cajeroActual: null,
     movs: [],
     clientes: {},
-    arqueos: {}
+    arqueos: {},
+    cheques: []
   };
 
   // config
@@ -129,6 +142,18 @@ function loadStore() {
     }
   }
 
+  // cheques
+  const ch = db.exec('SELECT id,ventaId,numero,monto,vencimiento,fecha,cliente,estado,salidaDetalle,salidaFecha FROM cheques');
+  if (ch.length) {
+    for (const r of ch[0].values) {
+      store.cheques.push({
+        id: r[0], ventaId: r[1], numero: r[2] || '', monto: num(r[3]),
+        vencimiento: r[4] || '', fecha: r[5] || '', cliente: r[6] || '',
+        estado: r[7] || 'cartera', salidaDetalle: r[8] || '', salidaFecha: r[9] || ''
+      });
+    }
+  }
+
   return store;
 }
 
@@ -175,6 +200,14 @@ function saveStore(store) {
       insArq.run([fecha, a.frente == null ? '' : String(a.frente), a.fondo == null ? '' : String(a.fondo)]);
     }
     insArq.free();
+
+    // cheques
+    db.run('DELETE FROM cheques');
+    const insChq = db.prepare('INSERT INTO cheques(id,ventaId,numero,monto,vencimiento,fecha,cliente,estado,salidaDetalle,salidaFecha) VALUES (?,?,?,?,?,?,?,?,?,?)');
+    for (const c of (store.cheques || [])) {
+      insChq.run([c.id, c.ventaId || null, c.numero || '', num(c.monto), c.vencimiento || '', c.fecha || '', c.cliente || '', c.estado || 'cartera', c.salidaDetalle || '', c.salidaFecha || '']);
+    }
+    insChq.free();
 
     db.run('COMMIT');
   } catch (e) {

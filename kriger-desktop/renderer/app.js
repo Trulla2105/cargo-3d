@@ -5,7 +5,7 @@
 const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
 
 // Estado en memoria. Arranca vacio y se llena desde la base de datos en boot().
-let store = { config: { cajeros: [], saldoFrente: 0, saldoFondo: 0, fondoPin: '' }, cajeroActual: null, movs: [], clientes: {}, arqueos: {} };
+let store = { config: { cajeros: [], saldoFrente: 0, saldoFondo: 0, fondoPin: '' }, cajeroActual: null, movs: [], clientes: {}, arqueos: {}, cheques: [] };
 let fondoUnlocked = false; // si ya escribio la clave (cuando hay) para ver la caja fondo en esta sesion
 
 // ---- Guardado en la base de datos -----------------------------------------
@@ -50,9 +50,9 @@ function ventaDe(date) {
   }, 0);
 }
 
-const TITLES = { cargar: 'Cargar', movs: 'Movimientos', cierre: 'Cierre del día', ventas: 'Ventas', clientes: 'Clientes', estad: 'Estadísticas', fondo: 'Caja fondo' };
+const TITLES = { cargar: 'Cargar', movs: 'Movimientos', cierre: 'Cierre del día', ventas: 'Ventas', clientes: 'Clientes', estad: 'Estadísticas', fondo: 'Caja fondo', cheques: 'Cheques' };
 function show(view) {
-  ['login', 'home', 'cargar', 'movs', 'cierre', 'ventas', 'clientes', 'estad', 'fondo'].forEach(v => $('#v-' + v).classList.toggle('hide', v !== view));
+  ['login', 'home', 'cargar', 'movs', 'cierre', 'ventas', 'clientes', 'estad', 'fondo', 'cheques'].forEach(v => $('#v-' + v).classList.toggle('hide', v !== view));
   const sub = !['login', 'home'].includes(view);
   $('#backBtn').classList.toggle('hide', !sub);
   $('#brandLabel').classList.toggle('hide', sub);
@@ -69,6 +69,7 @@ function show(view) {
   if (view === 'ventas') renderVentas();
   if (view === 'clientes') renderClientes();
   if (view === 'estad') renderEstad();
+  if (view === 'cheques') renderCheques();
   window.scrollTo(0, 0);
 }
 $('#backBtn').addEventListener('click', () => show('home'));
@@ -134,6 +135,8 @@ function renderCargar() {
   $('#ve_fecha').value = $('#ga_fecha').value = $('#mo_fecha').value = today();
   $('#ve_medios').innerHTML = MEDIOS.map(([v, l]) => `<button class="chip med${v === curMedio ? ' on' : ''}" data-med="${v}">${l}</button>`).join('');
   $('#ve_remito_wrap').classList.toggle('hide', curMedio !== 'cta corriente');
+  $('#ve_cheques_wrap').classList.toggle('hide', curMedio !== 'cheque');
+  updateChequesBtn();
   refreshClientesDL(); renderUltimos();
 }
 function selTipo(t) {
@@ -141,7 +144,58 @@ function selTipo(t) {
   $('#form-venta').classList.toggle('hide', t !== 'venta'); $('#form-gasto').classList.toggle('hide', t !== 'gasto'); $('#form-mover').classList.toggle('hide', t !== 'mover');
 }
 $$('[data-tipo]').forEach(c => c.addEventListener('click', () => selTipo(c.dataset.tipo)));
-$('#ve_medios').addEventListener('click', e => { const b = e.target.closest('[data-med]'); if (!b) return; curMedio = b.dataset.med; $$('#ve_medios .chip').forEach(c => c.classList.toggle('on', c.dataset.med === curMedio)); $('#ve_remito_wrap').classList.toggle('hide', curMedio !== 'cta corriente'); });
+$('#ve_medios').addEventListener('click', e => {
+  const b = e.target.closest('[data-med]'); if (!b) return;
+  curMedio = b.dataset.med;
+  $$('#ve_medios .chip').forEach(c => c.classList.toggle('on', c.dataset.med === curMedio));
+  $('#ve_remito_wrap').classList.toggle('hide', curMedio !== 'cta corriente');
+  $('#ve_cheques_wrap').classList.toggle('hide', curMedio !== 'cheque');
+  if (curMedio !== 'cheque') chequesPend = [];
+  updateChequesBtn();
+});
+
+// ---- Cheques de una venta -------------------------------------------------
+let chequesPend = []; // cheques que se están cargando en la venta actual
+function updateChequesBtn() {
+  const n = chequesPend.length;
+  const tot = chequesPend.reduce((a, c) => a + pm(c.monto), 0);
+  $('#ve_cheques_btn').textContent = n ? `${n} cheque${n > 1 ? 's' : ''} · ${fmt(tot)}` : '+ Cargar cheques';
+}
+function openChequesModal() {
+  if (!chequesPend.length) chequesPend = [{ numero: '', vencimiento: '', monto: '' }];
+  renderChqRows();
+  $('#ovCheques').classList.add('on');
+}
+function renderChqRows() {
+  $('#chq_rows').innerHTML = chequesPend.map((c, i) => `
+    <div class="card" style="padding:10px;margin-bottom:8px">
+      <div class="fr2">
+        <div><label class="fl">N° cheque</label><input data-chq="numero" data-i="${i}" value="${esc(c.numero)}" placeholder="N°"></div>
+        <div><label class="fl">Vencimiento</label><input type="date" data-chq="vencimiento" data-i="${i}" value="${esc(c.vencimiento)}"></div>
+      </div>
+      <div style="margin-top:8px"><label class="fl">Monto</label><input data-chq="monto" data-i="${i}" inputmode="decimal" value="${c.monto !== '' && c.monto != null ? fmtP(pm(c.monto)) : ''}" placeholder="$ 0"></div>
+      ${chequesPend.length > 1 ? `<button class="btn gh sm" data-chqdel="${i}" style="margin-top:8px;color:var(--bad)">Quitar este cheque</button>` : ''}
+    </div>`).join('');
+  $('#chq_total').textContent = fmt(chequesPend.reduce((a, c) => a + pm(c.monto), 0));
+}
+$('#ve_cheques_btn').addEventListener('click', openChequesModal);
+$('#chq_add').addEventListener('click', () => { chequesPend.push({ numero: '', vencimiento: '', monto: '' }); renderChqRows(); });
+$('#chq_rows').addEventListener('input', e => {
+  const t = e.target; if (!t.dataset || !t.dataset.chq) return;
+  chequesPend[+t.dataset.i][t.dataset.chq] = t.value;
+  if (t.dataset.chq === 'monto') $('#chq_total').textContent = fmt(chequesPend.reduce((a, c) => a + pm(c.monto), 0));
+});
+$('#chq_rows').addEventListener('click', e => {
+  const d = e.target.closest('[data-chqdel]'); if (!d) return;
+  chequesPend.splice(+d.dataset.chqdel, 1); renderChqRows();
+});
+$('#chq_done').addEventListener('click', () => {
+  chequesPend = chequesPend.filter(c => pm(c.monto) > 0);
+  const tot = chequesPend.reduce((a, c) => a + pm(c.monto), 0);
+  if (tot) $('#ve_monto').value = fmtP(tot);
+  updateChequesBtn();
+  $('#ovCheques').classList.remove('on');
+});
 $$('#form-gasto [data-caja]').forEach(c => c.addEventListener('click', () => { curCaja = c.dataset.caja; $$('#form-gasto [data-caja]').forEach(x => x.classList.toggle('on', x.dataset.caja === curCaja)); $('#ga_single').classList.toggle('hide', curCaja === 'div'); $('#ga_split').classList.toggle('hide', curCaja !== 'div'); }));
 $$('#form-mover [data-dir]').forEach(c => c.addEventListener('click', () => { curDir = c.dataset.dir; $$('#form-mover [data-dir]').forEach(x => x.classList.toggle('on', x.dataset.dir === curDir)); }));
 document.addEventListener('input', e => { if (e.target.id === 'ga_frente' || e.target.id === 'ga_fondo') $('#ga_total').textContent = fmt(pm($('#ga_frente').value) + pm($('#ga_fondo').value)); });
@@ -150,11 +204,23 @@ function refreshClientesDL() { $('#dl_clientes').innerHTML = Object.values(store
 function ensureCliente(nombre) { const k = norm(nombre); if (!k) return null; if (!store.clientes[k]) store.clientes[k] = { nombre: nombre.trim(), tel: '', mail: '', cuit: '', dir: '', notas: '' }; return k; }
 
 $('#ve_save').addEventListener('click', () => {
-  const monto = pm($('#ve_monto').value); if (!monto) return $('#ve_monto').focus();
+  let monto, chq = [];
+  if (curMedio === 'cheque') {
+    chq = chequesPend.filter(c => pm(c.monto) > 0);
+    if (!chq.length) { toast('Cargá al menos un cheque'); return openChequesModal(); }
+    monto = chq.reduce((a, c) => a + pm(c.monto), 0);
+  } else {
+    monto = pm($('#ve_monto').value); if (!monto) return $('#ve_monto').focus();
+  }
   const cli = $('#ve_cliente').value.trim(); if (cli) ensureCliente(cli);
   const remito = curMedio === 'cta corriente' ? $('#ve_remito').value.trim() : '';
-  store.movs.push({ id: uid(), t: 'venta', fecha: $('#ve_fecha').value || today(), cajero: store.cajeroActual, monto, medio: curMedio, cliente: cli, contacto: $('#ve_contacto').value, nota: $('#ve_nota').value.trim(), remito });
+  const fecha = $('#ve_fecha').value || today();
+  const vid = uid();
+  store.movs.push({ id: vid, t: 'venta', fecha, cajero: store.cajeroActual, monto, medio: curMedio, cliente: cli, contacto: $('#ve_contacto').value, nota: $('#ve_nota').value.trim(), remito });
+  // Los cheques van a la cartera, ligados a esta venta.
+  chq.forEach(c => store.cheques.push({ id: uid(), ventaId: vid, numero: String(c.numero || '').trim(), monto: pm(c.monto), vencimiento: c.vencimiento || '', fecha, cliente: cli, estado: 'cartera', salidaDetalle: '', salidaFecha: '' }));
   $('#ve_monto').value = ''; $('#ve_cliente').value = ''; $('#ve_nota').value = ''; $('#ve_remito').value = '';
+  chequesPend = []; updateChequesBtn();
   persist(); refreshClientesDL(); renderUltimos(); toast('Venta guardada');
 });
 $('#ga_save').addEventListener('click', () => {
@@ -432,6 +498,63 @@ function renderEstad() {
 }
 $('#es_mes').addEventListener('change', renderEstad);
 
+// ---- Apartado de cheques (cartera) ----------------------------------------
+let curChf = 'cartera', curChq = null, curChqEstado = 'cartera';
+function renderCheques() {
+  const all = store.cheques || [];
+  const sum = est => all.filter(c => c.estado === est).reduce((a, c) => a + pm(c.monto), 0);
+  $('#chq_cartera').textContent = fmt(sum('cartera'));
+  $('#chq_cobrados').textContent = fmt(sum('cobrado'));
+  $('#chq_entregados').textContent = fmt(sum('entregado'));
+  let rows = curChf === 'todos' ? all.slice() : all.filter(c => c.estado === curChf);
+  rows.sort((a, b) => (a.vencimiento || '').localeCompare(b.vencimiento || ''));
+  const hoy = today();
+  $('#chequesTable').innerHTML = rows.length ? `<table><thead><tr><th>N°</th><th>Cliente</th><th>Vence</th><th class="num">Monto</th><th>Estado</th></tr></thead><tbody>
+    ${rows.map(c => {
+    const venc = c.vencimiento || '';
+    const vencido = c.estado === 'cartera' && venc && venc < hoy;
+    const est = c.estado === 'cobrado' ? '<span class="pill ef">cobrado</span>' : c.estado === 'entregado' ? '<span class="pill ga">entregado</span>' : '<span class="pill tr">en cartera</span>';
+    return `<tr class="clk" data-cheque="${c.id}">
+        <td><b>${esc(c.numero) || '—'}</b></td>
+        <td>${esc(c.cliente) || '<span class="muted">—</span>'}${c.estado === 'entregado' && c.salidaDetalle ? `<div class="muted" style="font-size:11px">a ${esc(c.salidaDetalle)}</div>` : ''}</td>
+        <td>${venc ? fDate(venc) : '—'}${vencido ? '<div style="color:var(--bad);font-size:11px">vencido</div>' : ''}</td>
+        <td class="num">${fmt(pm(c.monto))}</td>
+        <td>${est}</td></tr>`;
+  }).join('')}</tbody></table>`
+    : '<div class="empty">No hay cheques en este estado. Se cargan al guardar una venta con medio Cheque.</div>';
+}
+$$('[data-chf]').forEach(b => b.addEventListener('click', () => { curChf = b.dataset.chf; $$('[data-chf]').forEach(x => x.classList.toggle('on', x.dataset.chf === curChf)); renderCheques(); }));
+document.addEventListener('click', e => { const r = e.target.closest('[data-cheque]'); if (r) openChqSalida(r.dataset.cheque); });
+function setChqEstadoUI(est) {
+  curChqEstado = est;
+  $$('#ovChqSalida [data-cs]').forEach(b => b.classList.toggle('on', b.dataset.cs === est));
+  $('#cs_entregado_wrap').classList.toggle('hide', est !== 'entregado');
+  $('#cs_fecha_wrap').classList.toggle('hide', est === 'cartera');
+}
+function openChqSalida(id) {
+  const c = (store.cheques || []).find(x => x.id === id); if (!c) return;
+  curChq = id;
+  $('#cs_num').textContent = c.numero ? 'N° ' + c.numero : '';
+  $('#cs_info').textContent = `${c.cliente || 'sin cliente'} · ${fmt(pm(c.monto))}${c.vencimiento ? ' · vence ' + fDate(c.vencimiento) : ''}`;
+  $('#cs_aquien').value = c.salidaDetalle || '';
+  $('#cs_fecha').value = c.salidaFecha || today();
+  setChqEstadoUI(c.estado || 'cartera');
+  $('#ovChqSalida').classList.add('on');
+}
+$$('#ovChqSalida [data-cs]').forEach(b => b.addEventListener('click', () => setChqEstadoUI(b.dataset.cs)));
+$('#cs_save').addEventListener('click', () => {
+  const c = (store.cheques || []).find(x => x.id === curChq); if (!c) return;
+  c.estado = curChqEstado;
+  if (curChqEstado === 'cartera') { c.salidaDetalle = ''; c.salidaFecha = ''; }
+  else { c.salidaFecha = $('#cs_fecha').value || today(); c.salidaDetalle = curChqEstado === 'entregado' ? $('#cs_aquien').value.trim() : ''; }
+  persist(); $('#ovChqSalida').classList.remove('on'); renderCheques();
+});
+$('#cs_del').addEventListener('click', () => {
+  if (!curChq || !confirm('¿Eliminar este cheque de la cartera?')) return;
+  store.cheques = store.cheques.filter(x => x.id !== curChq);
+  persist(); $('#ovChqSalida').classList.remove('on'); renderCheques();
+});
+
 $('#gearBtn').addEventListener('click', () => {
   $('#cfg_frente').value = fmtP(store.config.saldoFrente); $('#cfg_fondo').value = fmtP(store.config.saldoFondo);
   $('#cfg_pin').value = store.config.fondoPin || '';
@@ -498,6 +621,7 @@ async function boot() {
   store.movs = store.movs || [];
   store.clientes = store.clientes || {};
   store.arqueos = store.arqueos || {};
+  store.cheques = store.cheques || [];
   if (store.cajeroActual) { $('#cajName').textContent = store.cajeroActual; show('home'); }
   else { renderLogin(); show('login'); }
 }
