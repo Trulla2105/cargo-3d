@@ -240,6 +240,13 @@ $('#mo_save').addEventListener('click', () => {
 });
 
 function pillC(m) { return m === 'efectivo' ? 'ef' : m === 'transferencia' ? 'tr' : m === 'cheque' ? 'ch' : m === 'cta corriente' ? 'cc' : ''; }
+function gastoCaja(g) {
+  const f = pm(g.frente), fo = pm(g.fondo);
+  if (f && fo) return 'dividido: mostr ' + fmtP(f) + ' · fondo ' + fmtP(fo);
+  if (f) return 'mostrador';
+  if (fo) return 'fondo';
+  return '';
+}
 function movLabel(m) {
   if (m.t === 'venta') return { pill: pillC(m.medio), txt: m.medio, desc: (m.cliente || '') + (m.remito ? ' · remito ' + m.remito : '') + (m.nota ? ' · ' + m.nota : ''), amt: pm(m.monto), sign: '' };
   if (m.t === 'pago') return { pill: 'ef', txt: 'pago', desc: m.cliente || '', amt: pm(m.monto), sign: '' };
@@ -280,6 +287,7 @@ function renderCierre() {
   // Venta del día = lo realmente cobrado: ventas que no son cuenta corriente + pagos recibidos.
   const ventaTotal = ventas.filter(v => v.medio !== 'cta corriente').reduce((a, v) => a + pm(v.monto), 0) + pagosTot;
   const gastos = movs.filter(m => m.t === 'gasto');
+  const gastosTot = gastos.reduce((a, g) => a + pm(g.frente) + pm(g.fondo), 0);
   const movers = movs.filter(m => m.t === 'mover');
   const arq = store.arqueos[date] || {};
 
@@ -328,8 +336,9 @@ function renderCierre() {
       ${pagosTot ? `<div class="rule"></div><div class="ln"><span>Cobrado de cuenta corriente</span><span class="v">${fmt(pagosTot)}</span></div>` + pagos.map(p => `<div class="ln sub"><span>${esc(p.cliente || 'sin nombre')}</span><span class="v">${fmt(pm(p.monto))}</span></div>`).join('') : ''}
       ${ctaCte.length ? `<div class="rule"></div><div class="ln"><span class="muted">Entregado a cta cte <span style="font-weight:400">(a cobrar · no suma)</span></span><span class="v muted">${fmt(ctaCte.reduce((a, v) => a + pm(v.monto), 0))}</span></div>` + ctaCte.map(v => `<div class="ln sub"><span>${esc(v.cliente || 'sin nombre')}${v.remito ? ' · remito ' + esc(v.remito) : ''}</span><span class="v">${fmt(pm(v.monto))}</span></div>`).join('') : ''}
     </div>
-    ${gastos.length ? `<div class="card"><div class="lbl" style="margin-bottom:8px">Gastos del día</div>
-      ${gastos.map(g => `<div class="ln"><span>${esc(g.concepto)}</span><span class="v">${fmt(pm(g.frente) + pm(g.fondo))}</span></div>`).join('')}</div>` : ''}
+    <div class="card"><div class="lbl" style="margin-bottom:8px">Gastos del día</div>
+      ${gastos.length ? gastos.map(g => `<div class="ln"><span>${esc(g.concepto)} <span class="muted" style="font-size:12px">(${gastoCaja(g)})</span></span><span class="v">−${fmtP(pm(g.frente) + pm(g.fondo))}</span></div>`).join('') + `<div class="esper"><span>Total gastos</span><span class="v">${fmt(gastosTot)}</span></div>` : '<div class="muted" style="font-size:13.5px;padding:6px 0">Sin gastos del día.</div>'}
+    </div>
     <div class="card">
       <div class="lbl">Arqueo de caja</div>
       ${arqHTML('Caja mostrador', '#9CC112', aF, 'frente')}
