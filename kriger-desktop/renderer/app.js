@@ -6,7 +6,7 @@ const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySel
 
 // Estado en memoria. Arranca vacio y se llena desde la base de datos en boot().
 let store = { config: { cajeros: [], saldoFrente: 0, saldoFondo: 0, fondoPin: '' }, cajeroActual: null, movs: [], clientes: {}, arqueos: {} };
-let fondoVisible = false; // si ya escribio la clave para ver la caja fondo en esta sesion
+let fondoUnlocked = false; // si ya escribio la clave (cuando hay) para ver la caja fondo en esta sesion
 
 // ---- Guardado en la base de datos -----------------------------------------
 let _st, _saveT;
@@ -50,9 +50,9 @@ function ventaDe(date) {
   }, 0);
 }
 
-const TITLES = { cargar: 'Cargar', movs: 'Movimientos', cierre: 'Cierre del día', ventas: 'Ventas', clientes: 'Clientes', estad: 'Estadísticas' };
+const TITLES = { cargar: 'Cargar', movs: 'Movimientos', cierre: 'Cierre del día', ventas: 'Ventas', clientes: 'Clientes', estad: 'Estadísticas', fondo: 'Caja fondo' };
 function show(view) {
-  ['login', 'home', 'cargar', 'movs', 'cierre', 'ventas', 'clientes', 'estad'].forEach(v => $('#v-' + v).classList.toggle('hide', v !== view));
+  ['login', 'home', 'cargar', 'movs', 'cierre', 'ventas', 'clientes', 'estad', 'fondo'].forEach(v => $('#v-' + v).classList.toggle('hide', v !== view));
   const sub = !['login', 'home'].includes(view);
   $('#backBtn').classList.toggle('hide', !sub);
   $('#brandLabel').classList.toggle('hide', sub);
@@ -62,6 +62,7 @@ function show(view) {
   $('#cajchip').classList.toggle('hide', !logged || view === 'login');
   $('#gearBtn').classList.toggle('hide', !logged || view === 'login');
   if (view === 'home') renderHome();
+  if (view === 'fondo') renderFondo();
   if (view === 'cargar') renderCargar();
   if (view === 'movs') renderMovs();
   if (view === 'cierre') renderCierre();
@@ -90,19 +91,43 @@ function renderHome() {
   $('#h_venta').textContent = fmt(ventaDe(today()));
   $('#h_frente').textContent = fmt(saldoActual('frente'));
   $('#h_fondo').textContent = fmt(saldoActual('fondo'));
-  // Caja fondo reservada: si hay clave y todavia no la escribio, queda tapada.
-  const pin = store.config.fondoPin || '';
-  const locked = !!pin && !fondoVisible;
-  $('#h_fondo').classList.toggle('locked', locked);
-  $('#h_fondolock').classList.toggle('hide', !locked);
+  // La caja fondo queda SIEMPRE reservada (tapada) en el inicio. Se mira tocando "Ver".
+  $('#h_fondo').classList.add('locked');
+  $('#h_fondolock').classList.remove('hide');
 }
-$('#h_fondolock').addEventListener('click', () => {
+// Abrir la caja fondo: si hay clave la pide una vez; si no, entra directo.
+function openFondo() {
   const pin = store.config.fondoPin || '';
-  const t = prompt('Clave de la caja fondo:');
-  if (t == null) return;
-  if (t === pin) { fondoVisible = true; renderHome(); }
-  else toast('Clave incorrecta');
-});
+  if (pin && !fondoUnlocked) {
+    const t = prompt('Clave de la caja fondo:');
+    if (t == null) return;
+    if (t !== pin) { toast('Clave incorrecta'); return; }
+    fondoUnlocked = true;
+  }
+  show('fondo');
+}
+$('#h_fondolock').addEventListener('click', openFondo);
+$('#h_fondobox').addEventListener('click', e => { if (!e.target.closest('#h_fondolock')) openFondo(); });
+
+function renderFondo() {
+  $('#fo_saldo').textContent = fmt(saldoActual('fondo'));
+  const movs = store.movs.filter(m => efecto(m).fondo !== 0)
+    .slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.id || '').localeCompare(a.id || ''));
+  const fila = m => {
+    const ef = efecto(m).fondo;
+    let desc = '';
+    if (m.t === 'gasto') desc = 'Gasto: ' + (m.concepto || '');
+    else if (m.t === 'mover') desc = m.dir === 'aFondo' ? 'Vino del mostrador' : 'Pasó al mostrador';
+    const pill = m.t === 'gasto' ? 'ga' : 'mo';
+    return `<tr>
+      <td style="width:1%"><span class="pill ${pill}">${m.t === 'gasto' ? 'gasto' : 'mover'}</span></td>
+      <td>${esc(desc)}<div class="muted" style="font-size:11px">${fDate(m.fecha)}${m.cajero ? ' · ' + esc(m.cajero) : ''}</div></td>
+      <td class="num" style="color:${ef < 0 ? 'var(--bad)' : 'var(--ok)'}">${ef < 0 ? '−' : '+'}${fmtP(Math.abs(ef))}</td></tr>`;
+  };
+  const inicial = store.config.saldoFondo || 0;
+  $('#fondoBody').innerHTML = (movs.length ? `<table><tbody>${movs.map(fila).join('')}</tbody></table>` : '<div class="empty">Sin movimientos en la caja fondo.</div>')
+    + `<div class="ln" style="border-top:1px solid var(--line);margin-top:6px;padding-top:10px"><span class="muted">Saldo inicial cargado</span><span class="v">${fmt(inicial)}</span></div>`;
+}
 
 let curTipo = 'venta', curMedio = 'efectivo', curCaja = 'frente', curDir = 'aFondo';
 function renderCargar() {
