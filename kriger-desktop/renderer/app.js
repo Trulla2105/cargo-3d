@@ -454,6 +454,30 @@ $('#cfg_backup').addEventListener('click', async () => {
   else toast('No se pudo guardar la copia');
 });
 $('#cfg_openFolder').addEventListener('click', () => { window.api.openDbFolder(); });
+$('#cfg_import').addEventListener('click', async () => {
+  const r = await window.api.pickExcel();
+  if (!r || r.canceled) return;
+  if (!r.ok) { alert('No se pudo leer el Excel.\n\n' + (r.error || '')); return; }
+  const s = r.resumen;
+  let msg = `Voy a importar de la hoja "${s.hoja}":\n\n`;
+  msg += `• ${s.ventas} ventas (del ${fDate(s.fechaMin)} al ${fDate(s.fechaMax)})\n`;
+  msg += `• ${s.clientes} clientes (se crean solos)\n`;
+  msg += `• Cajeros: ${s.cajeros.join(', ')}\n`;
+  msg += `• Total histórico: ${fmt(s.sumaTotal)}\n`;
+  if (s.saltadasFecha) msg += `\n(${s.saltadasFecha} venta/s con la fecha mal cargada quedan afuera)\n`;
+  msg += `\nSe hace una copia de seguridad antes de tocar nada.\n¿Importar ahora?`;
+  if (!confirm(msg)) return;
+  const imp = await window.api.importExcel(r.filePath);
+  if (imp && imp.ok) {
+    const ld = await window.api.load();
+    if (ld && ld.ok && ld.store) store = ld.store;
+    $('#ovCfg').classList.remove('on');
+    toast('Importado: ' + imp.resumen.ventas + ' ventas ✓');
+    show('home');
+  } else {
+    alert('No se pudo importar.\n\n' + (imp && imp.error || ''));
+  }
+});
 
 $$('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('.ov').classList.remove('on')));
 $$('.ov').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('on'); }));

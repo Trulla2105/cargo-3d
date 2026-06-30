@@ -18,7 +18,8 @@
     "dist:dir": "electron-builder --dir"
   },
   "dependencies": {
-    "sql.js": "^1.10.3"
+    "sql.js": "^1.10.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "electron": "^31.7.7",

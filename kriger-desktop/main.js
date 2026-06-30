@@ -5,6 +5,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const db = require('./db');
+const importExcel = require('./import-excel');
 
 let win = null;
 
@@ -84,4 +85,30 @@ ipcMain.handle('db:openFolder', async () => {
   const i = db.info();
   shell.showItemInFolder(i.dbPath);
   return { ok: true };
+});
+
+// Elegir el Excel y leerlo (sin importar todavía): devuelve un resumen.
+ipcMain.handle('excel:pick', async () => {
+  const res = await dialog.showOpenDialog(win, {
+    title: 'Elegí tu archivo de Excel con las ventas',
+    properties: ['openFile'],
+    filters: [{ name: 'Excel', extensions: ['xlsx', 'xlsm', 'xls', 'csv'] }]
+  });
+  if (res.canceled || !res.filePaths.length) return { canceled: true };
+  const parsed = importExcel.parse(res.filePaths[0]);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  return { ok: true, filePath: res.filePaths[0], resumen: parsed.resumen };
+});
+
+// Importar de verdad: hace copia de seguridad y agrega los datos.
+ipcMain.handle('excel:import', async (_evt, filePath) => {
+  try {
+    const parsed = importExcel.parse(filePath);
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+    db.backupLabeled('antes-de-importar');
+    const resumen = db.mergeImport(parsed);
+    return { ok: true, resumen };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
 });

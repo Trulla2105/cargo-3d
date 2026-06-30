@@ -8,5 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   save: (store) => ipcRenderer.invoke('store:save', store),
   exportBackup: () => ipcRenderer.invoke('backup:export'),
   dbInfo: () => ipcRenderer.invoke('db:info'),
-  openDbFolder: () => ipcRenderer.invoke('db:openFolder')
+  openDbFolder: () => ipcRenderer.invoke('db:openFolder'),
+  pickExcel: () => ipcRenderer.invoke('excel:pick'),
+  importExcel: (filePath) => ipcRenderer.invoke('excel:import', filePath)
 });

@@ -226,4 +226,32 @@ function info() {
   return { dbPath, backupDir };
 }
 
-module.exports = { init, loadStore, saveStore, exportTo, info };
+// Copia de seguridad con una etiqueta (ej: antes de importar).
+function backupLabeled(label) {
+  try {
+    if (!backupDir) return;
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    flushToDisk();
+    const d = new Date();
+    const stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') +
+      '_' + String(d.getHours()).padStart(2, '0') + '-' + String(d.getMinutes()).padStart(2, '0');
+    fs.copyFileSync(dbPath, path.join(backupDir, `kriger-${label}-${stamp}.sqlite`));
+  } catch (e) { /* no romper por la copia */ }
+}
+
+// Agrega ventas/clientes/cajeros importados a lo que ya hay (sin pisar lo existente).
+function mergeImport(data) {
+  const store = loadStore();
+  for (const m of (data.movs || [])) store.movs.push(m);
+  for (const [k, c] of Object.entries(data.clientes || {})) {
+    if (!store.clientes[k]) store.clientes[k] = c;
+  }
+  store.config.cajeros = store.config.cajeros || [];
+  for (const c of (data.cajeros || [])) {
+    if (!store.config.cajeros.some(x => String(x).toLowerCase() === String(c).toLowerCase())) store.config.cajeros.push(c);
+  }
+  saveStore(store);
+  return { ventas: (data.movs || []).length, clientesTotal: Object.keys(store.clientes).length, movsTotal: store.movs.length };
+}
+
+module.exports = { init, loadStore, saveStore, exportTo, info, backupLabeled, mergeImport };
