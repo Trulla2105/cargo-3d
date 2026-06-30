@@ -7,10 +7,14 @@
   "author": "Kriger",
   "license": "UNLICENSED",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Trulla2105/cargo-3d.git"
+  },
   "scripts": {
     "start": "electron .",
     "test:db": "node test-db.js",
-    "dist:win": "electron-builder --win --x64",
+    "dist:win": "electron-builder --win --x64 -p never",
     "dist:dir": "electron-builder --dir"
   },
   "dependencies": {
@@ -23,6 +27,7 @@
   "build": {
     "appId": "ar.kriger.desktop",
     "productName": "Kriger",
+    "publish": null,
     "files": [
       "main.js",
       "preload.js",
