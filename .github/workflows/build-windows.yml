@@ -1,0 +1,58 @@
+name: Armar instalador de Windows (Kriger)
+
+# Arma el programa de escritorio de Kriger para Windows y lo deja para descargar.
+# Se puede correr a mano desde la pestaña "Actions", o automaticamente cuando
+# cambian los archivos de la app.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - claude/kriger-desktop-app-zqobks
+    paths:
+      - 'kriger-desktop/**'
+      - '.github/workflows/build-windows.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: kriger-desktop
+    steps:
+      - name: Traer el codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Armar el instalador
+        run: npm run dist:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Guardar el instalador como archivo descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kriger-instalador-windows
+          path: kriger-desktop/dist/*.exe
+          if-no-files-found: error
+
+      - name: Publicar instalador para descarga directa
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: kriger-windows
+          name: Kriger - Instalador para Windows
+          body: |
+            Instalador de Kriger para Windows.
+            Bajá el archivo .exe de aca abajo y hacé doble clic para instalar.
+          files: kriger-desktop/dist/*.exe
+          fail_on_unmatched_files: true
