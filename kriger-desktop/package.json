@@ -1,0 +1,48 @@
+{
+  "name": "kriger-desktop",
+  "productName": "Kriger",
+  "version": "0.1.0",
+  "description": "Aplicacion de escritorio para Kriger - control de cajas, ventas, gastos y clientes",
+  "main": "main.js",
+  "author": "Kriger",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test:db": "node test-db.js",
+    "dist:win": "electron-builder --win --x64",
+    "dist:dir": "electron-builder --dir"
+  },
+  "dependencies": {
+    "sql.js": "^1.10.3"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "ar.kriger.desktop",
+    "productName": "Kriger",
+    "files": [
+      "main.js",
+      "preload.js",
+      "db.js",
+      "renderer/**",
+      "assets/**",
+      "node_modules/sql.js/dist/sql-wasm.wasm"
+    ],
+    "asarUnpack": [
+      "node_modules/sql.js/dist/sql-wasm.wasm"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Kriger"
+    }
+  }
+}

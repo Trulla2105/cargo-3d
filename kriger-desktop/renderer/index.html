@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self';">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kriger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="styles.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="bar"><div class="barin">
+  <button class="back hide" id="backBtn">←</button>
+  <span class="brand" id="brandLabel"><span class="sq"></span>Kriger</span>
+  <span class="bartitle hide" id="barTitle"></span>
+  <span class="spacer"></span>
+  <span class="saved" id="saved">guardado ✓</span>
+  <span class="cajchip hide" id="cajchip"><span class="who">Caja:</span><b id="cajName"></b></span>
+  <button class="gear hide" id="gearBtn" title="Configuración"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4.5a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 6 8.6l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 12 4.6h0V4.5a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9h.1a2 2 0 1 1 0 4h-.1z"/></svg></button>
+</div></div>
+
+<div class="wrap">
+
+  <!-- LOGIN -->
+  <section id="v-login">
+    <div style="text-align:center;padding:30px 0 20px"><div class="brand" style="justify-content:center;font-size:26px"><span class="sq"></span>Kriger</div></div>
+    <div class="card">
+      <h2 style="font-size:18px;margin-bottom:4px">¿Quién está en la caja?</h2>
+      <p class="muted" style="font-size:13.5px;margin-bottom:16px">Elegí tu nombre y queda fijo hasta que lo cambies.</p>
+      <div class="pickgrid" id="cajeroBtns"></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <input id="nuevoCajero" placeholder="Agregar nombre…">
+        <button class="btn pri sm" id="addCajero" style="white-space:nowrap">Agregar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOME -->
+  <section id="v-home" class="hide">
+    <div class="top3">
+      <div class="topbox venta"><span class="swipe"></span><div class="lbl">Venta de hoy</div><div class="amt" id="h_venta">$ 0</div></div>
+      <div class="topbox"><div class="lbl">Caja mostrador</div><div class="amt tabnum" id="h_frente">$ 0</div></div>
+      <div class="topbox fondo" id="h_fondobox">
+        <div class="lbl">Caja fondo</div><div class="amt tabnum locked" id="h_fondo">$ 0</div>
+        <div class="fondolock" id="h_fondolock"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg> Ver</div>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="mbtn go full" data-go="cargar">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+        <span><span class="t">Cargar movimiento</span><span class="d">Venta, gasto o pasar plata entre cajas</span></span>
+      </button>
+      <button class="mbtn" data-go="cierre">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>
+        <span class="t">Cierre del día</span><span class="d">Arqueo de las dos cajas</span>
+      </button>
+      <button class="mbtn" data-go="movs">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/><path d="M19 15l2 2-2 2"/></svg>
+        <span class="t">Movimientos</span><span class="d">Todo, como la hoja</span>
+      </button>
+      <button class="mbtn" data-go="ventas">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h12M8 12h12M8 18h12M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
+        <span class="t">Ventas</span><span class="d">Solo las ventas</span>
+      </button>
+      <button class="mbtn" data-go="clientes">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 6.5a3 3 0 0 1 0 5.8M20.5 19a5 5 0 0 0-3.5-4.7"/></svg>
+        <span class="t">Clientes</span><span class="d">Fichas y cuenta corriente</span>
+      </button>
+      <button class="mbtn" data-go="estad">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19V11M12 19V5M19 19v-6"/></svg>
+        <span class="t">Estadísticas</span><span class="d">Mensual y por día</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- CARGAR -->
+  <section id="v-cargar" class="hide">
+    <div class="seg c3">
+      <button class="chip on" data-tipo="venta">Venta</button>
+      <button class="chip" data-tipo="gasto">Gasto</button>
+      <button class="chip" data-tipo="mover">Mover</button>
+    </div>
+    <div class="card">
+      <div id="form-venta">
+        <label class="fl">Monto de la venta</label>
+        <input id="ve_monto" class="big-money" inputmode="decimal" placeholder="$ 0">
+        <div style="margin-top:14px"></div>
+        <label class="fl">Medio de pago</label>
+        <div class="chips-wrap" id="ve_medios"></div>
+        <div class="ff"><label class="fl">Cliente <span class="muted" style="text-transform:none;letter-spacing:0">(opcional)</span></label><input id="ve_cliente" list="dl_clientes" placeholder="Nombre"><datalist id="dl_clientes"></datalist></div>
+        <div class="fr2">
+          <div class="ff"><label class="fl">Contacto</label>
+            <select id="ve_contacto"><option value="presencial">Presencial</option><option value="whatsapp">WhatsApp</option><option value="cc">CC</option><option value="comisionista">Comisionista</option><option value="seña">Seña</option></select></div>
+          <div class="ff"><label class="fl">Fecha</label><input type="date" id="ve_fecha"></div>
+        </div>
+        <div class="ff"><label class="fl">Nota <span class="muted" style="text-transform:none;letter-spacing:0">(opcional)</span></label><input id="ve_nota" placeholder="Prenda, talle, detalle…"></div>
+        <button class="btn pri" id="ve_save">Guardar venta</button>
+      </div>
+
+      <div id="form-gasto" class="hide">
+        <label class="fl">Concepto del gasto</label>
+        <input id="ga_concepto" placeholder="Ej. sueldo Gisela, proveedor…">
+        <div style="margin-top:13px"></div>
+        <label class="fl">¿De qué caja sale?</label>
+        <div class="seg c3"><button class="chip on" data-caja="frente">Mostrador</button><button class="chip" data-caja="fondo">Fondo</button><button class="chip" data-caja="div">Dividido</button></div>
+        <div id="ga_single">
+          <label class="fl">Monto</label><input id="ga_monto" class="big-money" inputmode="decimal" placeholder="$ 0">
+        </div>
+        <div id="ga_split" class="hide">
+          <div class="fr2">
+            <div><label class="fl">Del mostrador</label><input id="ga_frente" class="money big-money" style="font-size:22px" inputmode="decimal" placeholder="$ 0"></div>
+            <div><label class="fl">Del fondo</label><input id="ga_fondo" class="money big-money" style="font-size:22px" inputmode="decimal" placeholder="$ 0"></div>
+          </div>
+          <div class="ln" style="justify-content:flex-end"><span class="muted" style="font-size:13px">Total gasto:&nbsp;</span><span class="v" id="ga_total">$ 0</span></div>
+        </div>
+        <div class="ff" style="margin-top:13px"><label class="fl">Fecha</label><input type="date" id="ga_fecha"></div>
+        <button class="btn pri" id="ga_save">Guardar gasto</button>
+      </div>
+
+      <div id="form-mover" class="hide">
+        <label class="fl">Pasar efectivo</label>
+        <div class="seg c2"><button class="chip on" data-dir="aFondo">Mostrador → Fondo</button><button class="chip" data-dir="aFrente">Fondo → Mostrador</button></div>
+        <label class="fl">Monto</label><input id="mo_monto" class="big-money" inputmode="decimal" placeholder="$ 0">
+        <div class="ff" style="margin-top:13px"><label class="fl">Fecha</label><input type="date" id="mo_fecha"></div>
+        <button class="btn pri" id="mo_save">Guardar movimiento</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="lbl" style="margin-bottom:10px">Últimos movimientos de hoy</div>
+      <div id="ultimos"></div>
+    </div>
+  </section>
+
+  <!-- CIERRE -->
+  <section id="v-cierre" class="hide">
+    <div class="card" style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <label class="fl" style="margin:0">Día</label><input type="date" id="ci_fecha" style="width:auto;flex:1">
+    </div>
+    <div id="cierreBody"></div>
+  </section>
+
+  <!-- MOVIMIENTOS -->
+  <section id="v-movs" class="hide">
+    <div class="filters">
+      <input id="mv_q" placeholder="Buscar…"><select id="mv_mes"></select>
+    </div>
+    <div class="seg c3" style="margin-bottom:12px">
+      <button class="chip on" data-mvf="todo">Todo</button>
+      <button class="chip" data-mvf="venta">Ventas</button>
+      <button class="chip" data-mvf="gasto">Gastos</button>
+    </div>
+    <div id="movsTable"></div>
+  </section>
+
+  <!-- VENTAS -->
+  <section id="v-ventas" class="hide">
+    <div class="filters">
+      <input id="fl_q" placeholder="Buscar…"><select id="fl_mes"></select>
+    </div>
+    <div class="card" id="ventasTable"></div>
+  </section>
+
+  <!-- CLIENTES -->
+  <section id="v-clientes" class="hide">
+    <div class="filters" style="grid-template-columns:1fr auto"><input id="cl_q" placeholder="Buscar cliente…"><button class="btn gh sm" id="cl_new">+ Cliente</button></div>
+    <div class="card" id="clientesTable"></div>
+  </section>
+
+  <!-- ESTADISTICAS -->
+  <section id="v-estad" class="hide">
+    <div class="card"><div class="lbl" style="margin-bottom:10px">Este mes</div><div id="es_stats" style="display:grid;grid-template-columns:1fr 1fr;gap:14px"></div></div>
+    <div class="card"><div class="lbl" style="margin-bottom:10px">Ventas por día</div><div style="margin-bottom:10px"><select id="es_mes"></select></div><div id="es_diario"></div></div>
+    <div class="card"><div class="lbl" style="margin-bottom:10px">Mensual por año</div><div id="es_mensual"></div></div>
+  </section>
+
+</div>
+
+<div class="ov" id="ovCfg"><div class="modal">
+  <button class="x" data-close>×</button><h3>Configuración</h3>
+  <div style="margin-top:14px"><label class="fl">Saldo actual en mostrador</label><input id="cfg_frente" class="money" inputmode="decimal"></div>
+  <div style="margin-top:10px"><label class="fl">Saldo actual en fondo</label><input id="cfg_fondo" class="money" inputmode="decimal"></div>
+  <p class="muted" style="font-size:12px;margin-top:6px">Poné cuánto efectivo hay hoy en cada caja para arrancar. Después se ajusta solo con los movimientos.</p>
+  <div style="margin-top:16px"><label class="fl">Clave de la caja fondo <span class="muted" style="text-transform:none;letter-spacing:0">(opcional)</span></label><input id="cfg_pin" inputmode="numeric" placeholder="Dejar vacío = sin clave"><p class="muted" style="font-size:12px;margin-top:6px">Si ponés una clave, el saldo de la caja fondo queda tapado en el inicio hasta que la escribas.</p></div>
+  <div style="margin-top:16px"><label class="fl">Cajeros</label><div id="cfg_cajeros" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px"><input id="cfg_nuevoCaj" placeholder="Agregar cajero…"><button class="btn pri sm" id="cfg_addCaj" style="white-space:nowrap">+</button></div></div>
+  <div style="margin-top:18px"><label class="fl">Copia de seguridad</label>
+    <button class="btn gh" id="cfg_backup" style="margin-bottom:8px">Guardar copia en pendrive / carpeta…</button>
+    <button class="btn gh sm" id="cfg_openFolder">Ver dónde se guardan los datos</button>
+    <p class="muted" style="font-size:12px;margin-top:6px">La app hace una copia automática cada día. Acá podés guardar una copia donde quieras (pendrive, Drive).</p>
+  </div>
+  <button class="btn pri" id="cfg_save" style="margin-top:18px">Guardar</button>
+</div></div>
+
+<div class="ov" id="ovCli"><div class="modal">
+  <button class="x" data-close>×</button><h3 id="cli_title">Cliente</h3>
+  <div class="fr2" style="margin-top:12px">
+    <div class="ff"><label class="fl">Nombre</label><input id="cli_nombre"></div>
+    <div class="ff"><label class="fl">Teléfono</label><input id="cli_tel"></div>
+    <div class="ff"><label class="fl">Mail</label><input id="cli_mail"></div>
+    <div class="ff"><label class="fl">CUIT</label><input id="cli_cuit"></div>
+  </div>
+  <div class="ff"><label class="fl">Dirección</label><input id="cli_dir"></div>
+  <div class="ff"><label class="fl">Notas</label><textarea id="cli_notas" rows="2"></textarea></div>
+  <div class="ccbal" id="cli_ccbal"><span>Cuenta corriente</span><span class="amt" id="cli_ccamt">$ 0</span></div>
+  <div class="fr2"><input id="cli_pago" class="money" inputmode="decimal" placeholder="Monto del pago"><button class="btn gh" id="cli_pagoBtn">Registrar pago</button></div>
+  <div class="lbl" style="margin-top:14px">Movimientos</div><div id="cli_movs"></div>
+  <div style="display:flex;gap:8px;margin-top:16px"><button class="btn pri" id="cli_save" style="flex:1">Guardar</button><button class="btn gh" id="cli_del" style="width:auto;color:var(--bad)">Eliminar</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

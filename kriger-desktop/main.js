@@ -1,0 +1,87 @@
+// main.js — proceso principal de Electron.
+// Abre la ventana, prepara la base de datos en la carpeta de datos de la PC,
+// y atiende los pedidos de la pantalla (cargar / guardar / copia de seguridad).
+
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const path = require('path');
+const db = require('./db');
+
+let win = null;
+
+function dataDir() {
+  // Carpeta privada de la app dentro del perfil del usuario de Windows.
+  // Ej: C:\Users\lizzi\AppData\Roaming\Kriger
+  return app.getPath('userData');
+}
+
+async function createWindow() {
+  win = new BrowserWindow({
+    width: 480,
+    height: 860,
+    minWidth: 380,
+    minHeight: 640,
+    backgroundColor: '#EDEDE8',
+    title: 'Kriger',
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+}
+
+app.whenReady().then(async () => {
+  const dbPath = path.join(dataDir(), 'kriger.sqlite');
+  const backupDir = path.join(dataDir(), 'copias-de-seguridad');
+  await db.init(dbPath, backupDir);
+
+  await createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+
+// ---- Pedidos desde la pantalla -------------------------------------------
+
+ipcMain.handle('store:load', async () => {
+  try { return { ok: true, store: db.loadStore() }; }
+  catch (e) { return { ok: false, error: String(e) }; }
+});
+
+ipcMain.handle('store:save', async (_evt, store) => {
+  try { db.saveStore(store); return { ok: true }; }
+  catch (e) { return { ok: false, error: String(e) }; }
+});
+
+ipcMain.handle('backup:export', async () => {
+  const res = await dialog.showOpenDialog(win, {
+    title: 'Elegí dónde guardar la copia (pendrive, Drive, carpeta…)',
+    properties: ['openDirectory', 'createDirectory'],
+    buttonLabel: 'Guardar copia acá'
+  });
+  if (res.canceled || !res.filePaths.length) return { ok: false, canceled: true };
+  try {
+    const dest = db.exportTo(res.filePaths[0]);
+    return { ok: true, dest };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('db:info', async () => {
+  const i = db.info();
+  return i;
+});
+
+ipcMain.handle('db:openFolder', async () => {
+  const i = db.info();
+  shell.showItemInFolder(i.dbPath);
+  return { ok: true };
+});
