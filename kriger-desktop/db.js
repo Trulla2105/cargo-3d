@@ -105,7 +105,9 @@ function loadStore() {
       else if (k === 'saldoFondo') store.config.saldoFondo = num(v);
       else if (k === 'cajeroActual') store.cajeroActual = v || null;
       else if (k === 'fondoPin') store.config.fondoPin = v || '';
-      else if (k === 'viewerPin') store.config.viewerPin = v || '';
+      else if (k === 'viewerUrl') store.config.viewerUrl = v || '';
+      else if (k === 'viewerWriteKey') store.config.viewerWriteKey = v || '';
+      else if (k === 'viewerReadKey') store.config.viewerReadKey = v || '';
     }
   }
 
@@ -172,7 +174,9 @@ function saveStore(store) {
     setCfg.run(['saldoFondo', String(num(cfg.saldoFondo))]);
     setCfg.run(['cajeroActual', store.cajeroActual || '']);
     setCfg.run(['fondoPin', cfg.fondoPin || '']);
-    setCfg.run(['viewerPin', cfg.viewerPin || '']);
+    setCfg.run(['viewerUrl', cfg.viewerUrl || '']);
+    setCfg.run(['viewerWriteKey', cfg.viewerWriteKey || '']);
+    setCfg.run(['viewerReadKey', cfg.viewerReadKey || '']);
     setCfg.free();
 
     // movimientos (borrar y volver a escribir: simple y seguro para 1 usuario)

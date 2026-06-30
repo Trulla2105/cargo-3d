@@ -4,13 +4,39 @@
 
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const db = require('./db');
 const importExcel = require('./import-excel');
-const viewerServer = require('./viewer-server');
+const report = require('./report');
 let QRCode = null;
 try { QRCode = require('qrcode'); } catch (e) { /* opcional */ }
 
 let win = null;
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Publica el resumen en el "buzón" online (si está configurado). Con un pequeño
+// retraso para juntar varios guardados seguidos en uno.
+let _pubT = null;
+function publishLater(store) {
+  const cfg = (store && store.config) || {};
+  if (!cfg.viewerUrl || !cfg.viewerWriteKey) return;
+  clearTimeout(_pubT);
+  _pubT = setTimeout(() => { publishNow(store).catch(() => {}); }, 1500);
+}
+async function publishNow(store) {
+  const cfg = (store && store.config) || {};
+  if (!cfg.viewerUrl || !cfg.viewerWriteKey) return { ok: false, error: 'sin configurar' };
+  const snap = report.buildReport(store, todayStr());
+  const base = String(cfg.viewerUrl).replace(/\/+$/, '');
+  const res = await fetch(base + '/push?key=' + encodeURIComponent(cfg.viewerWriteKey), {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(snap)
+  });
+  return { ok: res.ok, status: res.status };
+}
 
 function dataDir() {
   // Carpeta privada de la app dentro del perfil del usuario de Windows.
@@ -41,10 +67,6 @@ app.whenReady().then(async () => {
   const backupDir = path.join(dataDir(), 'copias-de-seguridad');
   await db.init(dbPath, backupDir);
 
-  // Visor de solo lectura para el celular (misma red WiFi).
-  try { await viewerServer.start(() => db.loadStore(), 7777); }
-  catch (e) { console.warn('No se pudo iniciar el visor:', e); }
-
   await createWindow();
 
   app.on('activate', () => {
@@ -64,7 +86,7 @@ ipcMain.handle('store:load', async () => {
 });
 
 ipcMain.handle('store:save', async (_evt, store) => {
-  try { db.saveStore(store); return { ok: true }; }
+  try { db.saveStore(store); publishLater(store); return { ok: true }; }
   catch (e) { return { ok: false, error: String(e) }; }
 });
 
@@ -94,14 +116,31 @@ ipcMain.handle('db:openFolder', async () => {
   return { ok: true };
 });
 
-// Datos del visor de celular (dirección + QR).
-ipcMain.handle('viewer:info', async () => {
-  const i = viewerServer.info();
+// Código del "buzón" (Worker de Cloudflare) con las claves ya completadas.
+ipcMain.handle('viewer:workerCode', async () => {
+  try {
+    const cfg = db.loadStore().config || {};
+    let code = fs.readFileSync(path.join(__dirname, 'cloudflare-worker.js'), 'utf8');
+    code = code.split('__WRITEKEY__').join(cfg.viewerWriteKey || '').split('__READKEY__').join(cfg.viewerReadKey || '');
+    return { ok: true, code };
+  } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+// Publica ahora (botón "Probar") y avisa si salió bien.
+ipcMain.handle('viewer:test', async () => {
+  try { return await publishNow(db.loadStore()); }
+  catch (e) { return { ok: false, error: String(e) }; }
+});
+
+// Enlace para el celular + QR.
+ipcMain.handle('viewer:phoneLink', async () => {
+  const cfg = db.loadStore().config || {};
+  if (!cfg.viewerUrl || !cfg.viewerReadKey) return { ok: false };
+  const base = String(cfg.viewerUrl).replace(/\/+$/, '');
+  const link = base + '/?k=' + encodeURIComponent(cfg.viewerReadKey);
   let qr = '';
-  if (i.url && QRCode) {
-    try { qr = await QRCode.toDataURL(i.url, { margin: 1, width: 220 }); } catch (e) {}
-  }
-  return { url: i.url, ip: i.ip, port: i.port, qr };
+  if (QRCode) { try { qr = await QRCode.toDataURL(link, { margin: 1, width: 200 }); } catch (e) {} }
+  return { ok: true, link, qr };
 });
 
 // Elegir el Excel y leerlo (sin importar todavía): devuelve un resumen.

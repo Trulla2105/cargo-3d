@@ -558,30 +558,80 @@ $('#cs_del').addEventListener('click', () => {
 $('#gearBtn').addEventListener('click', () => {
   $('#cfg_frente').value = fmtP(store.config.saldoFrente); $('#cfg_fondo').value = fmtP(store.config.saldoFondo);
   $('#cfg_pin').value = store.config.fondoPin || '';
-  $('#cfg_viewerPin').value = store.config.viewerPin || '';
-  renderCfgCajeros(); loadViewerInfo(); $('#ovCfg').classList.add('on');
+  renderCfgCajeros(); renderViewer(); $('#ovCfg').classList.add('on');
 });
-async function loadViewerInfo() {
-  const el = $('#viewerInfo');
-  try {
-    const i = await window.api.viewerInfo();
-    if (i && i.url) {
-      el.innerHTML = (i.qr ? `<img src="${i.qr}" alt="QR" style="width:170px;height:170px">` : '') +
-        `<div style="font-size:13px;margin-top:6px">En el celular, abrí esta dirección:<br><b>${esc(i.url)}</b></div>`;
-    } else {
-      el.innerHTML = '<p class="muted" style="font-size:12px">El visor no está disponible en este momento.</p>';
-    }
-  } catch (e) {
-    el.innerHTML = '<p class="muted" style="font-size:12px">El visor no está disponible en este momento.</p>';
+
+// ---- Ver desde el celular (enlace privado) --------------------------------
+function genKey() {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let s = ''; for (let i = 0; i < 24; i++) s += abc[Math.floor(Math.random() * abc.length)];
+  return s;
+}
+function renderViewer() {
+  const box = $('#viewerBox'), cfg = store.config;
+  if (cfg.viewerUrl && cfg.viewerReadKey) {
+    box.innerHTML = `<div id="viewerLinkBox" style="text-align:center"><p class="muted" style="font-size:12px">Cargando enlace…</p></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn gh sm" data-vw="test">Probar ahora</button>
+        <button class="btn gh sm" data-vw="steps">Ver pasos otra vez</button>
+        <button class="btn gh sm" data-vw="remove" style="color:var(--bad)">Quitar</button>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:8px">Abrí ese enlace en el celular (podés "Agregar a pantalla de inicio" para que quede como app). Muestra venta del día, cierre, cheques y caja fondo. Solo lectura. La PC lo actualiza cada vez que cargás un movimiento.</p>`;
+    loadPhoneLink();
+  } else if (cfg.viewerWriteKey) {
+    renderViewerSteps();
+  } else {
+    box.innerHTML = `<p class="muted" style="font-size:12px;margin-bottom:8px">Para ver la info desde el celular (desde cualquier lado), preparamos un enlace privado tuyo. Es un paso de una sola vez; te guío.</p>
+      <button class="btn pri" data-vw="prepare">Preparar enlace</button>`;
   }
 }
+async function renderViewerSteps() {
+  const box = $('#viewerBox');
+  let code = '';
+  try { const wc = await window.api.viewerWorkerCode(); code = (wc && wc.code) || ''; } catch (e) {}
+  box.innerHTML = `
+    <ol style="font-size:13px;padding-left:18px;line-height:1.55">
+      <li>Entrá a <b>dash.cloudflare.com</b> y creá una cuenta gratis (no pide tarjeta).</li>
+      <li>Menú <b>Workers &amp; Pages</b> → <b>Create</b> → <b>Create Worker</b> → ponele un nombre → <b>Deploy</b>.</li>
+      <li>Tocá <b>Edit code</b>, borrá todo lo que haya y pegá este código:</li>
+    </ol>
+    <textarea data-vw-code readonly style="height:110px;font-family:monospace;font-size:11px;margin-top:6px">${esc(code)}</textarea>
+    <button class="btn gh sm" data-vw="copy" style="margin-top:6px">Copiar código</button>
+    <ol start="4" style="font-size:13px;padding-left:18px;line-height:1.55;margin-top:8px">
+      <li>Arriba a la derecha tocá <b>Deploy</b>.</li>
+      <li>Creá el guardado: menú <b>Storage &amp; Databases → KV</b> → <b>Create</b> → nombre <b>KRIGER</b>.</li>
+      <li>Volvé a tu Worker → <b>Settings → Bindings</b> → agregá <b>KV namespace</b>: nombre de variable <b>KRIGER</b> y elegí el que creaste. Guardá.</li>
+      <li>Copiá la dirección de tu Worker (termina en <b>.workers.dev</b>) y pegala acá:</li>
+    </ol>
+    <input data-vw-url placeholder="https://tu-worker.workers.dev" style="margin-top:6px">
+    <button class="btn pri" data-vw="saveUrl" style="margin-top:8px">Guardar dirección</button>`;
+}
+async function loadPhoneLink() {
+  try {
+    const r = await window.api.viewerPhoneLink();
+    const el = $('#viewerLinkBox');
+    if (el && r && r.ok) {
+      el.innerHTML = (r.qr ? `<img src="${r.qr}" style="width:150px;height:150px">` : '') +
+        `<div style="font-size:12px;margin-top:4px;word-break:break-all"><b>${esc(r.link)}</b></div>`;
+    } else if (el) { el.innerHTML = '<p class="muted" style="font-size:12px">—</p>'; }
+  } catch (e) {}
+}
+$('#viewerBox').addEventListener('click', async e => {
+  const b = e.target.closest('[data-vw]'); if (!b) return;
+  const a = b.dataset.vw;
+  if (a === 'prepare') { store.config.viewerWriteKey = genKey(); store.config.viewerReadKey = genKey(); persist(); renderViewer(); }
+  else if (a === 'copy') { const t = $('[data-vw-code]'); t.select(); try { document.execCommand('copy'); } catch (e) {} toast('Código copiado'); }
+  else if (a === 'saveUrl') { const u = ($('[data-vw-url]').value || '').trim(); if (!u) return toast('Pegá la dirección'); store.config.viewerUrl = u.replace(/\/+$/, ''); persist(); renderViewer(); const r = await window.api.viewerTest(); toast(r && r.ok ? 'Enlace listo ✓' : 'Guardado (probá con "Probar ahora")'); }
+  else if (a === 'steps') { renderViewerSteps(); }
+  else if (a === 'test') { toast('Enviando…'); const r = await window.api.viewerTest(); toast(r && r.ok ? 'Enviado al celular ✓' : 'No se pudo. Revisá la dirección y el KV.'); }
+  else if (a === 'remove') { if (confirm('¿Quitar el enlace del celular? (podés volver a prepararlo)')) { store.config.viewerUrl = ''; persist(); renderViewer(); } }
+});
 function renderCfgCajeros() { $('#cfg_cajeros').innerHTML = store.config.cajeros.map(c => `<span class="pill" style="font-size:13px;padding:5px 10px">${esc(c)} <b data-rmcaj="${esc(c)}" style="cursor:pointer;color:var(--bad);margin-left:4px">×</b></span>`).join('') || '<span class="muted" style="font-size:13px">Ninguno</span>'; }
 $('#cfg_cajeros').addEventListener('click', e => { const b = e.target.closest('[data-rmcaj]'); if (!b) return; store.config.cajeros = store.config.cajeros.filter(c => c !== b.dataset.rmcaj); renderCfgCajeros(); });
 $('#cfg_addCaj').addEventListener('click', () => { const n = $('#cfg_nuevoCaj').value.trim(); if (n && !store.config.cajeros.includes(n)) store.config.cajeros.push(n); $('#cfg_nuevoCaj').value = ''; renderCfgCajeros(); });
 $('#cfg_save').addEventListener('click', () => {
   store.config.saldoFrente = pm($('#cfg_frente').value); store.config.saldoFondo = pm($('#cfg_fondo').value);
   store.config.fondoPin = $('#cfg_pin').value.trim();
-  store.config.viewerPin = $('#cfg_viewerPin').value.trim();
   persist(); $('#ovCfg').classList.remove('on'); renderHome();
 });
 $('#cfg_backup').addEventListener('click', async () => {
