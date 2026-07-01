@@ -102,7 +102,7 @@
         <div class="ff"><label class="fl">Cliente <span class="muted" style="text-transform:none;letter-spacing:0">(opcional)</span></label><input id="ve_cliente" list="dl_clientes" placeholder="Nombre"><datalist id="dl_clientes"></datalist></div>
         <div class="fr2">
           <div class="ff"><label class="fl">Contacto</label>
-            <select id="ve_contacto"><option value="presencial">Presencial</option><option value="whatsapp">WhatsApp</option><option value="cc">CC</option><option value="comisionista">Comisionista</option><option value="seña">Seña</option></select></div>
+            <select id="ve_contacto"><option value="presencial">Presencial</option><option value="whatsapp">WhatsApp</option></select></div>
           <div class="ff"><label class="fl">Fecha</label><input type="date" id="ve_fecha"></div>
         </div>
         <div class="ff hide" id="ve_remito_wrap"><label class="fl">N° de remito</label><input id="ve_remito" placeholder="Número de remito"></div>
@@ -283,6 +283,45 @@
   <div class="ff hide" id="cs_entregado_wrap"><label class="fl">¿A quién se lo diste?</label><input id="cs_aquien" placeholder="Nombre del tercero / proveedor"></div>
   <div class="ff" id="cs_fecha_wrap"><label class="fl">Fecha</label><input type="date" id="cs_fecha"></div>
   <div style="display:flex;gap:8px;margin-top:8px"><button class="btn pri" id="cs_save" style="flex:1">Guardar</button><button class="btn gh" id="cs_del" style="width:auto;color:var(--bad)">Eliminar</button></div>
+</div></div>
+
+<div class="ov" id="ovEdit"><div class="modal">
+  <button class="x" data-close>×</button><h3 id="ed_title">Editar</h3>
+  <div class="ff" style="margin-top:12px"><label class="fl">Fecha</label><input type="date" id="ed_fecha"></div>
+
+  <div id="ed_venta" class="hide">
+    <div class="ff"><label class="fl">Monto</label><input id="ed_ve_monto" class="big-money" style="font-size:22px" inputmode="decimal"></div>
+    <label class="fl">Medio de pago</label>
+    <div class="chips-wrap" id="ed_medios"></div>
+    <div class="ff"><label class="fl">Cliente</label><input id="ed_ve_cliente" list="dl_clientes"></div>
+    <div class="fr2">
+      <div class="ff"><label class="fl">Contacto</label>
+        <select id="ed_ve_contacto"><option value="presencial">Presencial</option><option value="whatsapp">WhatsApp</option></select></div>
+      <div class="ff"><label class="fl">Nota</label><input id="ed_ve_nota"></div>
+    </div>
+    <p class="muted hide" id="ed_ve_chqnote" style="font-size:12px">Los cheques de esta venta se editan en la pantalla Cheques.</p>
+  </div>
+
+  <div id="ed_gasto" class="hide">
+    <div class="ff"><label class="fl">Concepto</label><input id="ed_ga_concepto"></div>
+    <label class="fl">¿De qué caja sale?</label>
+    <div class="seg c3"><button type="button" class="chip on" data-edcaja="frente">Mostrador</button><button type="button" class="chip" data-edcaja="fondo">Fondo</button><button type="button" class="chip" data-edcaja="div">Dividido</button></div>
+    <div id="ed_ga_single"><label class="fl">Monto</label><input id="ed_ga_monto" class="big-money" style="font-size:22px" inputmode="decimal"></div>
+    <div id="ed_ga_split" class="hide"><div class="fr2"><div><label class="fl">Del mostrador</label><input id="ed_ga_frente" inputmode="decimal"></div><div><label class="fl">Del fondo</label><input id="ed_ga_fondo" inputmode="decimal"></div></div></div>
+  </div>
+
+  <div id="ed_mover" class="hide">
+    <label class="fl">Pasar efectivo</label>
+    <div class="seg c2"><button type="button" class="chip on" data-eddir="aFondo">Mostrador → Fondo</button><button type="button" class="chip" data-eddir="aFrente">Fondo → Mostrador</button></div>
+    <div class="ff"><label class="fl">Monto</label><input id="ed_mo_monto" class="big-money" style="font-size:22px" inputmode="decimal"></div>
+  </div>
+
+  <div id="ed_pago" class="hide">
+    <div class="ff"><label class="fl">Cliente</label><input id="ed_pa_cliente"></div>
+    <div class="ff"><label class="fl">Monto del pago</label><input id="ed_pa_monto" class="big-money" style="font-size:22px" inputmode="decimal"></div>
+  </div>
+
+  <button class="btn pri" id="ed_save" style="margin-top:8px">Guardar cambios</button>
 </div></div>
 
 <div class="toast" id="toast"></div>

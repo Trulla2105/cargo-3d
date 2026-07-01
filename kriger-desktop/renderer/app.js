@@ -27,7 +27,7 @@ function norm(s) { return String(s || '').trim().toLowerCase(); }
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 1600); }
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-const MEDIOS = [['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['cheque', 'Cheque'], ['deposito', 'Depósito'], ['cta corriente', 'Cta corriente'], ['otro', 'Otro']];
+const MEDIOS = [['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['cheque', 'Cheque'], ['cta corriente', 'Cta corriente']];
 
 function efecto(m) {
   if (m.t === 'venta') return { frente: m.medio === 'efectivo' ? pm(m.monto) : 0, fondo: 0 };
@@ -317,7 +317,7 @@ function renderUltimos() {
     <td><span class="pill ${L.pill}">${esc(L.txt)}</span></td>
     <td>${esc(L.desc) || '<span class="muted">—</span>'}</td>
     <td class="num">${L.sign}${fmt(L.amt)}</td>
-    <td><button class="tdel" data-delm="${m.id}">×</button></td></tr>`; }).join('')}</tbody></table>`
+    <td><button class="tdel" data-editm="${m.id}" title="Editar">✎</button><button class="tdel" data-delm="${m.id}">×</button></td></tr>`; }).join('')}</tbody></table>`
     : '<div class="empty">Sin movimientos hoy.</div>';
 }
 document.addEventListener('click', e => {
@@ -325,6 +325,81 @@ document.addEventListener('click', e => {
   if (!confirm('¿Borrar este movimiento?')) return;
   store.movs = store.movs.filter(m => m.id !== d.dataset.delm); persist();
   renderUltimos(); if (!$('#v-clientes').classList.contains('hide')) renderCliMovs(curCli); if (!$('#v-ventas').classList.contains('hide')) renderVentas(); if (!$('#v-movs').classList.contains('hide')) renderMovs();
+});
+
+function refreshMovViews() {
+  renderUltimos();
+  if (!$('#v-clientes').classList.contains('hide')) renderCliMovs(curCli);
+  if (!$('#v-ventas').classList.contains('hide')) renderVentas();
+  if (!$('#v-movs').classList.contains('hide')) renderMovs();
+  if (!$('#v-cheques').classList.contains('hide')) renderCheques();
+  if (!$('#v-home').classList.contains('hide')) renderHome();
+}
+
+// ---- Editar un movimiento (lapicito) --------------------------------------
+let edCurId = null, edMedio = 'efectivo', edCaja = 'frente', edDir = 'aFondo';
+document.addEventListener('click', e => { const b = e.target.closest('[data-editm]'); if (b) openEdit(b.dataset.editm); });
+function openEdit(id) {
+  const m = store.movs.find(x => x.id === id); if (!m) return;
+  edCurId = id;
+  $('#ed_fecha').value = m.fecha || today();
+  ['venta', 'gasto', 'mover', 'pago'].forEach(t => $('#ed_' + t).classList.toggle('hide', t !== m.t));
+  $('#ed_title').textContent = { venta: 'Editar venta', gasto: 'Editar gasto', mover: 'Editar pase', pago: 'Editar pago' }[m.t] || 'Editar';
+  if (m.t === 'venta') {
+    $('#ed_ve_monto').value = fmtP(pm(m.monto));
+    edMedio = m.medio || 'efectivo';
+    $('#ed_medios').innerHTML = MEDIOS.map(([v, l]) => `<button type="button" class="chip med${v === edMedio ? ' on' : ''}" data-edmed="${v}">${l}</button>`).join('');
+    $('#ed_ve_cliente').value = m.cliente || '';
+    $('#ed_ve_contacto').value = m.contacto || 'presencial';
+    $('#ed_ve_nota').value = m.nota || '';
+    $('#ed_ve_chqnote').classList.toggle('hide', m.medio !== 'cheque');
+  } else if (m.t === 'gasto') {
+    $('#ed_ga_concepto').value = m.concepto || '';
+    const f = pm(m.frente), fo = pm(m.fondo);
+    edCaja = (f && fo) ? 'div' : (fo ? 'fondo' : 'frente');
+    $$('#ed_gasto [data-edcaja]').forEach(x => x.classList.toggle('on', x.dataset.edcaja === edCaja));
+    $('#ed_ga_single').classList.toggle('hide', edCaja === 'div');
+    $('#ed_ga_split').classList.toggle('hide', edCaja !== 'div');
+    $('#ed_ga_monto').value = fmtP(edCaja === 'fondo' ? fo : f);
+    $('#ed_ga_frente').value = f ? fmtP(f) : '';
+    $('#ed_ga_fondo').value = fo ? fmtP(fo) : '';
+  } else if (m.t === 'mover') {
+    edDir = m.dir || 'aFondo';
+    $$('#ed_mover [data-eddir]').forEach(x => x.classList.toggle('on', x.dataset.eddir === edDir));
+    $('#ed_mo_monto').value = fmtP(pm(m.monto));
+  } else if (m.t === 'pago') {
+    $('#ed_pa_cliente').value = m.cliente || '';
+    $('#ed_pa_monto').value = fmtP(pm(m.monto));
+  }
+  $('#ovEdit').classList.add('on');
+}
+$('#ed_medios').addEventListener('click', e => { const b = e.target.closest('[data-edmed]'); if (!b) return; edMedio = b.dataset.edmed; $$('#ed_medios .chip').forEach(c => c.classList.toggle('on', c.dataset.edmed === edMedio)); $('#ed_ve_chqnote').classList.toggle('hide', edMedio !== 'cheque'); });
+$$('#ed_gasto [data-edcaja]').forEach(c => c.addEventListener('click', () => { edCaja = c.dataset.edcaja; $$('#ed_gasto [data-edcaja]').forEach(x => x.classList.toggle('on', x.dataset.edcaja === edCaja)); $('#ed_ga_single').classList.toggle('hide', edCaja === 'div'); $('#ed_ga_split').classList.toggle('hide', edCaja !== 'div'); }));
+$$('#ed_mover [data-eddir]').forEach(c => c.addEventListener('click', () => { edDir = c.dataset.eddir; $$('#ed_mover [data-eddir]').forEach(x => x.classList.toggle('on', x.dataset.eddir === edDir)); }));
+$('#ed_save').addEventListener('click', () => {
+  const m = store.movs.find(x => x.id === edCurId); if (!m) return;
+  m.fecha = $('#ed_fecha').value || m.fecha;
+  if (m.t === 'venta') {
+    const monto = pm($('#ed_ve_monto').value); if (!monto) return toast('Falta el monto');
+    m.monto = monto; m.medio = edMedio;
+    const cli = $('#ed_ve_cliente').value.trim(); if (cli) ensureCliente(cli); m.cliente = cli;
+    m.contacto = $('#ed_ve_contacto').value; m.nota = $('#ed_ve_nota').value.trim();
+  } else if (m.t === 'gasto') {
+    m.concepto = $('#ed_ga_concepto').value.trim() || 'Gasto';
+    let frente = 0, fondo = 0;
+    if (edCaja === 'frente') frente = pm($('#ed_ga_monto').value);
+    else if (edCaja === 'fondo') fondo = pm($('#ed_ga_monto').value);
+    else { frente = pm($('#ed_ga_frente').value); fondo = pm($('#ed_ga_fondo').value); }
+    if (frente + fondo <= 0) return toast('Falta el monto');
+    m.frente = frente; m.fondo = fondo;
+  } else if (m.t === 'mover') {
+    const monto = pm($('#ed_mo_monto').value); if (!monto) return toast('Falta el monto');
+    m.monto = monto; m.dir = edDir;
+  } else if (m.t === 'pago') {
+    const monto = pm($('#ed_pa_monto').value); if (!monto) return toast('Falta el monto');
+    m.monto = monto; const cli = $('#ed_pa_cliente').value.trim(); if (cli) ensureCliente(cli); m.cliente = cli;
+  }
+  persist(); $('#ovEdit').classList.remove('on'); refreshMovViews(); refreshClientesDL(); toast('Cambios guardados ✓');
 });
 
 let curCi = null;
@@ -431,7 +506,7 @@ function renderVentas() {
       <td><span class="muted" style="font-size:12.5px">${esc(contactoLabel(v.contacto))}</span></td>
       <td><span class="pill ${pillC(v.medio)}">${esc(v.medio)}</span></td>
       <td class="num">${fmt(pm(v.monto))}</td>
-      <td><button class="tdel" data-delm="${v.id}">×</button></td></tr>`).join('')}</tbody></table>
+      <td><button class="tdel" data-editm="${v.id}" title="Editar">✎</button><button class="tdel" data-delm="${v.id}">×</button></td></tr>`).join('')}</tbody></table>
     ${rows.length > MAX ? `<div class="muted" style="font-size:12px;text-align:center;padding:10px 8px">Mostrando ${MAX} de ${rows.length}. Filtrá por mes o buscá para ver menos.</div>` : ''}`
     : '<div class="empty">No hay ventas con esos filtros.</div>';
 }
@@ -466,7 +541,7 @@ function renderMovs() {
         <td style="width:1%"><span class="pill ${L.pill}">${esc(L.txt)}</span></td>
         <td>${esc(L.desc) || '<span class="muted">—</span>'}${m.cajero ? `<div class="muted" style="font-size:11px">${esc(m.cajero)}</div>` : ''}</td>
         <td class="num">${L.sign}${fmt(L.amt)}</td>
-        <td style="width:1%"><button class="tdel" data-delm="${m.id}">×</button></td></tr>`; }).join('')}</tbody></table>
+        <td style="width:1%"><button class="tdel" data-editm="${m.id}" title="Editar">✎</button><button class="tdel" data-delm="${m.id}">×</button></td></tr>`; }).join('')}</tbody></table>
     </div>`;
   }).join('');
 }
@@ -531,7 +606,7 @@ function renderCliMovs(key) {
   $('#cli_movs').innerHTML = ms.length ? `<table><tbody>${ms.map(m => `<tr><td>${fDate(m.fecha)}</td>
     <td>${m.t === 'pago' ? '<span class="pill ef">pago</span>' : '<span class="pill ' + pillC(m.medio) + '">' + esc(m.medio) + '</span>'}${m.remito ? ' <span class="muted">remito ' + esc(m.remito) + '</span>' : ''}${m.nota ? ' ' + esc(m.nota) : ''}</td>
     <td class="num">${m.t === 'pago' ? '−' : ''}${fmt(pm(m.monto))}</td>
-    <td><button class="tdel" data-delm="${m.id}">×</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Sin movimientos.</div>';
+    <td><button class="tdel" data-editm="${m.id}" title="Editar">✎</button><button class="tdel" data-delm="${m.id}">×</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Sin movimientos.</div>';
 }
 $('#cli_save').addEventListener('click', () => {
   const nombre = $('#cli_nombre').value.trim(); if (!nombre) return $('#cli_nombre').focus();
