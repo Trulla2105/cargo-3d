@@ -103,8 +103,14 @@ $('#cajchip').addEventListener('click', () => { renderLogin(); show('login'); })
 
 function renderHome() {
   $('#h_venta').textContent = fmt(ventaDe(today()));
-  $('#h_frente').textContent = fmt(saldoActual('frente'));
+  const frente = saldoActual('frente');
+  $('#h_frente').textContent = fmt(frente);
   $('#h_fondo').textContent = fmt(saldoActual('fondo'));
+  // Aviso si hay mucho efectivo en el mostrador.
+  const max = pm(store.config.alertaMax);
+  const over = max > 0 && frente > max;
+  $('#alertaBanner').classList.toggle('hide', !over);
+  if (over) $('#alertaMonto').textContent = fmt(frente);
   // La caja fondo queda SIEMPRE reservada (tapada) en el inicio. Se mira tocando "Ver".
   $('#h_fondo').classList.add('locked');
   $('#h_fondolock').classList.remove('hide');
@@ -122,6 +128,35 @@ function openFondo() {
 }
 $('#h_fondolock').addEventListener('click', openFondo);
 $('#h_fondobox').addEventListener('click', e => { if (!e.target.closest('#h_fondolock')) openFondo(); });
+
+// Ir a "Mover" con Mostrador → Fondo listo.
+function irAMoverFondo() {
+  show('cargar'); selTipo('mover'); curDir = 'aFondo';
+  $$('#form-mover [data-dir]').forEach(x => x.classList.toggle('on', x.dataset.dir === 'aFondo'));
+  updateMoverInfo(); $('#mo_monto').focus();
+}
+$('#alertaMover').addEventListener('click', irAMoverFondo);
+
+// Recordatorio por hora (ej. 16:55) si hay mucho efectivo en el mostrador.
+let _timeAlertDay = '';
+function checkTimeAlert() {
+  const cfg = store.config || {};
+  const max = pm(cfg.alertaMax), hora = cfg.alertaHora || '';
+  if (!max || !hora) return;
+  const day = today();
+  if (_timeAlertDay === day) return;
+  const now = new Date();
+  const hhmm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  if (hhmm < hora) return;
+  const frente = saldoActual('frente');
+  if (frente <= max) return;
+  _timeAlertDay = day;
+  const msg = `Son las ${hora}. Hay ${fmt(frente)} en el mostrador. ¿Pasás algo a la caja fondo antes de cerrar?`;
+  try { new Notification('Kriger — cierre', { body: msg }); } catch (e) {}
+  toast('⚠️ Pasá efectivo al fondo');
+  setTimeout(() => { if (confirm(msg + '\n\n¿Ir a pasar efectivo al fondo?')) irAMoverFondo(); }, 300);
+}
+setInterval(checkTimeAlert, 30000);
 
 function renderFondo() {
   $('#fo_saldo').textContent = fmt(saldoActual('fondo'));
@@ -149,7 +184,7 @@ function renderCargar() {
   $('#ve_medios').innerHTML = MEDIOS.map(([v, l]) => `<button class="chip med${v === curMedio ? ' on' : ''}" data-med="${v}">${l}</button>`).join('');
   $('#ve_remito_wrap').classList.toggle('hide', curMedio !== 'cta corriente');
   $('#ve_cheques_wrap').classList.toggle('hide', curMedio !== 'cheque');
-  updateChequesBtn();
+  updateChequesBtn(); updateMoverInfo();
   refreshClientesDL(); renderUltimos();
 }
 function selTipo(t) {
@@ -210,7 +245,12 @@ $('#chq_done').addEventListener('click', () => {
   $('#ovCheques').classList.remove('on');
 });
 $$('#form-gasto [data-caja]').forEach(c => c.addEventListener('click', () => { curCaja = c.dataset.caja; $$('#form-gasto [data-caja]').forEach(x => x.classList.toggle('on', x.dataset.caja === curCaja)); $('#ga_single').classList.toggle('hide', curCaja === 'div'); $('#ga_split').classList.toggle('hide', curCaja !== 'div'); }));
-$$('#form-mover [data-dir]').forEach(c => c.addEventListener('click', () => { curDir = c.dataset.dir; $$('#form-mover [data-dir]').forEach(x => x.classList.toggle('on', x.dataset.dir === curDir)); }));
+$$('#form-mover [data-dir]').forEach(c => c.addEventListener('click', () => { curDir = c.dataset.dir; $$('#form-mover [data-dir]').forEach(x => x.classList.toggle('on', x.dataset.dir === curDir)); updateMoverInfo(); }));
+function updateMoverInfo() {
+  const el = $('#mo_info'); if (!el) return;
+  const f = saldoActual('frente'), fo = saldoActual('fondo');
+  el.innerHTML = `Efectivo disponible — Mostrador: ${curDir === 'aFondo' ? '<b>' + fmt(f) + '</b>' : fmt(f)} · Fondo: ${curDir === 'aFrente' ? '<b>' + fmt(fo) + '</b>' : fmt(fo)}`;
+}
 document.addEventListener('input', e => { if (e.target.id === 'ga_frente' || e.target.id === 'ga_fondo') $('#ga_total').textContent = fmt(pm($('#ga_frente').value) + pm($('#ga_fondo').value)); });
 
 function refreshClientesDL() { $('#dl_clientes').innerHTML = Object.values(store.clientes).map(c => `<option value="${esc(c.nombre)}">`).join(''); }
@@ -600,6 +640,8 @@ $('#cs_del').addEventListener('click', () => {
 $('#gearBtn').addEventListener('click', () => {
   $('#cfg_frente').value = fmtP(store.config.saldoFrente); $('#cfg_fondo').value = fmtP(store.config.saldoFondo);
   $('#cfg_pin').value = store.config.fondoPin || '';
+  $('#cfg_alertaMax').value = store.config.alertaMax ? fmtP(store.config.alertaMax) : '';
+  $('#cfg_alertaHora').value = store.config.alertaHora || '16:55';
   renderCfgCajeros(); renderViewer(); $('#ovCfg').classList.add('on');
 });
 
@@ -674,6 +716,8 @@ $('#cfg_addCaj').addEventListener('click', () => { const n = $('#cfg_nuevoCaj').
 $('#cfg_save').addEventListener('click', () => {
   store.config.saldoFrente = pm($('#cfg_frente').value); store.config.saldoFondo = pm($('#cfg_fondo').value);
   store.config.saldoFecha = today(); // el saldo cuenta desde hoy
+  store.config.alertaMax = pm($('#cfg_alertaMax').value);
+  store.config.alertaHora = $('#cfg_alertaHora').value || '16:55';
   store.config.fondoPin = $('#cfg_pin').value.trim();
   persist(); $('#ovCfg').classList.remove('on'); renderHome();
 });

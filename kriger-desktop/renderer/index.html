@@ -40,6 +40,11 @@
 
   <!-- HOME -->
   <section id="v-home" class="hide">
+    <div class="hide" id="alertaBanner" style="background:#FFF4D6;border:1px solid #E9C766;color:#6b4e00;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:14px">
+      <span style="font-size:20px">⚠️</span>
+      <span style="flex:1">Hay mucho efectivo en el mostrador (<b id="alertaMonto"></b>). Conviene pasar algo a la caja fondo.</span>
+      <button class="btn pri sm" id="alertaMover">Pasar</button>
+    </div>
     <div class="top3">
       <div class="topbox venta"><span class="swipe"></span><div class="lbl">Venta de hoy</div><div class="amt" id="h_venta">$ 0</div></div>
       <div class="topbox"><div class="lbl">Caja mostrador</div><div class="amt tabnum" id="h_frente">$ 0</div></div>
@@ -130,6 +135,7 @@
         <label class="fl">Pasar efectivo</label>
         <div class="seg c2"><button class="chip on" data-dir="aFondo">Mostrador → Fondo</button><button class="chip" data-dir="aFrente">Fondo → Mostrador</button></div>
         <label class="fl">Monto</label><input id="mo_monto" class="big-money" inputmode="decimal" placeholder="$ 0">
+        <div id="mo_info" class="muted" style="font-size:13px;margin-top:8px;text-align:center"></div>
         <div class="ff" style="margin-top:13px"><label class="fl">Fecha</label><input type="date" id="mo_fecha"></div>
         <button class="btn pri" id="mo_save">Guardar movimiento</button>
       </div>
@@ -218,7 +224,10 @@
   <button class="x" data-close>×</button><h3>Configuración</h3>
   <div style="margin-top:14px"><label class="fl">Saldo actual en mostrador</label><input id="cfg_frente" class="money" inputmode="decimal"></div>
   <div style="margin-top:10px"><label class="fl">Saldo actual en fondo</label><input id="cfg_fondo" class="money" inputmode="decimal"></div>
-  <p class="muted" style="font-size:12px;margin-top:6px">Poné cuánto efectivo hay hoy en cada caja para arrancar. Después se ajusta solo con los movimientos.</p>
+  <p class="muted" style="font-size:12px;margin-top:6px">Poné cuánto efectivo hay hoy en cada caja para arrancar. El saldo cuenta desde hoy (las ventas viejas importadas no lo afectan).</p>
+  <div style="margin-top:16px"><label class="fl">Aviso de efectivo en el mostrador</label>
+    <div class="fr2"><input id="cfg_alertaMax" class="money" inputmode="decimal" placeholder="Monto máximo (0 = sin aviso)"><input type="time" id="cfg_alertaHora"></div>
+    <p class="muted" style="font-size:12px;margin-top:6px">Si el efectivo del mostrador supera ese monto, te aviso para pasar a la caja fondo. Y a esa hora (ej. 16:55), si hay de más, te lo recuerdo para el cierre.</p></div>
   <div style="margin-top:16px"><label class="fl">Clave de la caja fondo <span class="muted" style="text-transform:none;letter-spacing:0">(opcional)</span></label><input id="cfg_pin" inputmode="numeric" placeholder="Dejar vacío = sin clave"><p class="muted" style="font-size:12px;margin-top:6px">Si ponés una clave, el saldo de la caja fondo queda tapado en el inicio hasta que la escribas.</p></div>
   <div style="margin-top:16px"><label class="fl">Cajeros</label><div id="cfg_cajeros" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px"></div>
     <div style="display:flex;gap:8px"><input id="cfg_nuevoCaj" placeholder="Agregar cajero…"><button class="btn pri sm" id="cfg_addCaj" style="white-space:nowrap">+</button></div></div>

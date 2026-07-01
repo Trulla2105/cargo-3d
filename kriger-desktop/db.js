@@ -104,6 +104,8 @@ function loadStore() {
       else if (k === 'saldoFrente') store.config.saldoFrente = num(v);
       else if (k === 'saldoFondo') store.config.saldoFondo = num(v);
       else if (k === 'saldoFecha') store.config.saldoFecha = v || '';
+      else if (k === 'alertaMax') store.config.alertaMax = num(v);
+      else if (k === 'alertaHora') store.config.alertaHora = v || '';
       else if (k === 'cajeroActual') store.cajeroActual = v || null;
       else if (k === 'fondoPin') store.config.fondoPin = v || '';
       else if (k === 'viewerUrl') store.config.viewerUrl = v || '';
@@ -174,6 +176,8 @@ function saveStore(store) {
     setCfg.run(['saldoFrente', String(num(cfg.saldoFrente))]);
     setCfg.run(['saldoFondo', String(num(cfg.saldoFondo))]);
     setCfg.run(['saldoFecha', cfg.saldoFecha || '']);
+    setCfg.run(['alertaMax', String(num(cfg.alertaMax))]);
+    setCfg.run(['alertaHora', cfg.alertaHora || '']);
     setCfg.run(['cajeroActual', store.cajeroActual || '']);
     setCfg.run(['fondoPin', cfg.fondoPin || '']);
     setCfg.run(['viewerUrl', cfg.viewerUrl || '']);
