@@ -36,8 +36,21 @@ function efecto(m) {
   if (m.t === 'mover') return m.dir === 'aFondo' ? { frente: -pm(m.monto), fondo: pm(m.monto) } : { frente: pm(m.monto), fondo: -pm(m.monto) };
   return { frente: 0, fondo: 0 };
 }
-function saldoHasta(caja, beforeDate) { let s = store.config['saldo' + (caja === 'frente' ? 'Frente' : 'Fondo')] || 0; store.movs.forEach(m => { if (!beforeDate || m.fecha < beforeDate) s += efecto(m)[caja]; }); return s; }
-function saldoActual(caja) { let s = store.config['saldo' + (caja === 'frente' ? 'Frente' : 'Fondo')] || 0; store.movs.forEach(m => s += efecto(m)[caja]); return s; }
+// El saldo cuenta desde config.saldoFecha (el día que cargaste tu efectivo
+// actual). Los movimientos anteriores a esa fecha NO cuentan (ej: ventas viejas
+// importadas del Excel), así el saldo refleja la plata que tenés hoy.
+function saldoHasta(caja, beforeDate) {
+  const desde = store.config.saldoFecha || '';
+  let s = store.config['saldo' + (caja === 'frente' ? 'Frente' : 'Fondo')] || 0;
+  store.movs.forEach(m => { if (desde && m.fecha < desde) return; if (!beforeDate || m.fecha < beforeDate) s += efecto(m)[caja]; });
+  return s;
+}
+function saldoActual(caja) {
+  const desde = store.config.saldoFecha || '';
+  let s = store.config['saldo' + (caja === 'frente' ? 'Frente' : 'Fondo')] || 0;
+  store.movs.forEach(m => { if (desde && m.fecha < desde) return; s += efecto(m)[caja]; });
+  return s;
+}
 // "Venta del día" = plata que REALMENTE entró ese día.
 // Las ventas en cuenta corriente NO cuentan hasta que el cliente paga; cada
 // pago (aunque sea parcial) suma a la venta del día en que se hizo.
@@ -240,6 +253,10 @@ $('#mo_save').addEventListener('click', () => {
 });
 
 function pillC(m) { return m === 'efectivo' ? 'ef' : m === 'transferencia' ? 'tr' : m === 'cheque' ? 'ch' : m === 'cta corriente' ? 'cc' : ''; }
+function contactoLabel(c) {
+  const M = { presencial: 'Presencial', whatsapp: 'WhatsApp', cc: 'CC', comisionista: 'Comisionista', 'seña': 'Seña' };
+  return M[c] || (c || '—');
+}
 function gastoCaja(g) {
   const f = pm(g.frente), fo = pm(g.fondo);
   if (f && fo) return 'dividido: mostr ' + fmtP(f) + ' · fondo ' + fmtP(fo);
@@ -365,37 +382,37 @@ function renderVentas() {
   }).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.id.localeCompare(a.id));
   const cobrado = rows.filter(v => v.medio !== 'cta corriente').reduce((a, v) => a + pm(v.monto), 0);
   const aCobrar = rows.filter(v => v.medio === 'cta corriente').reduce((a, v) => a + pm(v.monto), 0);
+  const MAX = 400, shown = rows.slice(0, MAX);
   $('#ventasTable').innerHTML = rows.length ? `<div class="ln" style="margin-bottom:4px"><span class="muted" style="font-size:12px">${rows.length} ventas · cobrado</span><span style="font-weight:700" class="tabnum">${fmt(cobrado)}</span></div>
     ${aCobrar ? `<div class="ln" style="margin-bottom:8px"><span class="muted" style="font-size:12px">A cobrar (cta cte)</span><span class="tabnum" style="color:var(--bad);font-weight:600">${fmt(aCobrar)}</span></div>` : ''}
-    <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Medio</th><th class="num">Total</th><th></th></tr></thead><tbody>
-    ${rows.map(v => `<tr><td>${fDate(v.fecha)}<div class="muted" style="font-size:11px">${esc(v.cajero || '')}</div></td>
+    <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Medio</th><th class="num">Total</th><th></th></tr></thead><tbody>
+    ${shown.map(v => `<tr><td>${fDate(v.fecha)}<div class="muted" style="font-size:11px">${esc(v.cajero || '')}</div></td>
       <td>${esc(v.cliente) || '<span class="muted">—</span>'}${v.nota ? `<div class="muted" style="font-size:11px">${esc(v.nota)}</div>` : ''}</td>
+      <td><span class="muted" style="font-size:12.5px">${esc(contactoLabel(v.contacto))}</span></td>
       <td><span class="pill ${pillC(v.medio)}">${esc(v.medio)}</span></td>
       <td class="num">${fmt(pm(v.monto))}</td>
-      <td><button class="tdel" data-delm="${v.id}">×</button></td></tr>`).join('')}</tbody></table>`
+      <td><button class="tdel" data-delm="${v.id}">×</button></td></tr>`).join('')}</tbody></table>
+    ${rows.length > MAX ? `<div class="muted" style="font-size:12px;text-align:center;padding:10px 8px">Mostrando ${MAX} de ${rows.length}. Filtrá por mes o buscá para ver menos.</div>` : ''}`
     : '<div class="empty">No hay ventas con esos filtros.</div>';
 }
 $('#fl_q').addEventListener('input', renderVentas); $('#fl_mes').addEventListener('change', renderVentas);
 
-let curMvf = 'todo';
-function fillMesMovs() {
-  const meses = [...new Set(store.movs.map(m => mesKey(m.fecha)).filter(Boolean))].sort().reverse();
-  const v = $('#mv_mes').value;
-  $('#mv_mes').innerHTML = '<option value="">Todos los meses</option>' + meses.map(m => { const [y, mm] = m.split('-'); return `<option value="${m}">${MESES[+mm - 1]} ${y}</option>`; }).join('');
-  if (v) $('#mv_mes').value = v;
-}
+let curMvf = 'todo', curMvp = 'dia';
 function movSearch(m) { const L = movLabel(m); return norm((m.cliente || '') + ' ' + (m.concepto || '') + ' ' + (m.nota || '') + ' ' + (m.cajero || '') + ' ' + L.txt + ' ' + L.desc); }
 function renderMovs() {
-  fillMesMovs();
-  const q = norm($('#mv_q').value), mes = $('#mv_mes').value;
+  if (!$('#mv_fecha').value) $('#mv_fecha').value = today();
+  const base = $('#mv_fecha').value || today();
+  const q = norm($('#mv_q').value);
   let rows = store.movs.filter(m => {
-    if (mes && mesKey(m.fecha) !== mes) return false;
+    if (curMvp === 'dia' && m.fecha !== base) return false;
+    if (curMvp === 'mes' && mesKey(m.fecha) !== mesKey(base)) return false;
+    if (curMvp === 'anio' && (m.fecha || '').slice(0, 4) !== base.slice(0, 4)) return false;
     if (curMvf === 'venta' && m.t !== 'venta') return false;
     if (curMvf === 'gasto' && m.t !== 'gasto') return false;
     if (q && !movSearch(m).includes(q)) return false;
     return true;
   }).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.id || '').localeCompare(a.id || ''));
-  if (!rows.length) { $('#movsTable').innerHTML = '<div class="card"><div class="empty">No hay movimientos.</div></div>'; return; }
+  if (!rows.length) { $('#movsTable').innerHTML = '<div class="card"><div class="empty">No hay movimientos en este período.</div></div>'; return; }
   const dias = [], map = {};
   rows.forEach(m => { if (!map[m.fecha]) { map[m.fecha] = []; dias.push(m.fecha); } map[m.fecha].push(m); });
   $('#movsTable').innerHTML = dias.map(f => {
@@ -414,8 +431,9 @@ function renderMovs() {
   }).join('');
 }
 $('#mv_q').addEventListener('input', renderMovs);
-$('#mv_mes').addEventListener('change', renderMovs);
+$('#mv_fecha').addEventListener('change', renderMovs);
 $$('[data-mvf]').forEach(b => b.addEventListener('click', () => { curMvf = b.dataset.mvf; $$('[data-mvf]').forEach(x => x.classList.toggle('on', x.dataset.mvf === curMvf)); renderMovs(); }));
+$$('[data-mvp]').forEach(b => b.addEventListener('click', () => { curMvp = b.dataset.mvp; $$('[data-mvp]').forEach(x => x.classList.toggle('on', x.dataset.mvp === curMvp)); renderMovs(); }));
 
 function clienteStats(key) {
   const ms = store.movs.filter(m => norm(m.cliente) === key);
@@ -426,14 +444,29 @@ function clienteStats(key) {
   const pagos = ms.filter(m => m.t === 'pago').reduce((a, v) => a + pm(v.monto), 0);
   return { total, count: ventas.length, ultima: fechas[fechas.length - 1], saldoCC: cc - pagos };
 }
+// Calcula las estadísticas de TODOS los clientes en una sola pasada (rápido,
+// aunque haya miles de ventas importadas).
+function allClienteStats() {
+  const map = {};
+  store.movs.forEach(m => {
+    const key = norm(m.cliente); if (!key) return;
+    const s = map[key] || (map[key] = { total: 0, count: 0, ultima: '', cc: 0, pagos: 0 });
+    if (m.t === 'venta') { const v = pm(m.monto); s.total += v; s.count++; if (m.fecha && m.fecha > s.ultima) s.ultima = m.fecha; if (m.medio === 'cta corriente') s.cc += v; }
+    else if (m.t === 'pago') { s.pagos += pm(m.monto); }
+  });
+  for (const k in map) map[k].saldoCC = map[k].cc - map[k].pagos;
+  return map;
+}
 let curCli = null;
 function renderClientes() {
   refreshClientesDL();
   const q = norm($('#cl_q').value);
+  const stats = allClienteStats();
+  const blank = { total: 0, count: 0, ultima: '', saldoCC: 0 };
   let keys = Object.keys(store.clientes).filter(k => !q || norm(store.clientes[k].nombre).includes(q));
-  keys.sort((a, b) => clienteStats(b).total - clienteStats(a).total);
+  keys.sort((a, b) => (stats[b] || blank).total - (stats[a] || blank).total);
   $('#clientesTable').innerHTML = keys.length ? `<table><thead><tr><th>Cliente</th><th class="num">Total</th><th>Última</th><th class="num">Cta cte</th></tr></thead><tbody>
-    ${keys.map(k => { const s = clienteStats(k), c = store.clientes[k]; return `<tr class="clk" data-cli="${esc(k)}"><td><b>${esc(c.nombre)}</b></td>
+    ${keys.map(k => { const s = stats[k] || blank, c = store.clientes[k]; return `<tr class="clk" data-cli="${esc(k)}"><td><b>${esc(c.nombre)}</b></td>
       <td class="num">${fmt(s.total)}</td><td>${fDate(s.ultima) || '—'}</td>
       <td class="num">${s.saldoCC > 0.5 ? `<span style="color:var(--bad);font-weight:600">${fmt(s.saldoCC)}</span>` : '—'}</td></tr>`; }).join('')}</tbody></table>`
     : '<div class="empty">Sin clientes. Se crean al cargar una venta con nombre, o con “+ Cliente”.</div>';
@@ -640,6 +673,7 @@ $('#cfg_cajeros').addEventListener('click', e => { const b = e.target.closest('[
 $('#cfg_addCaj').addEventListener('click', () => { const n = $('#cfg_nuevoCaj').value.trim(); if (n && !store.config.cajeros.includes(n)) store.config.cajeros.push(n); $('#cfg_nuevoCaj').value = ''; renderCfgCajeros(); });
 $('#cfg_save').addEventListener('click', () => {
   store.config.saldoFrente = pm($('#cfg_frente').value); store.config.saldoFondo = pm($('#cfg_fondo').value);
+  store.config.saldoFecha = today(); // el saldo cuenta desde hoy
   store.config.fondoPin = $('#cfg_pin').value.trim();
   persist(); $('#ovCfg').classList.remove('on'); renderHome();
 });
@@ -697,6 +731,9 @@ async function boot() {
   store.clientes = store.clientes || {};
   store.arqueos = store.arqueos || {};
   store.cheques = store.cheques || [];
+  // Si nunca se fijó la fecha del saldo, la ponemos hoy (así las ventas viejas
+  // importadas no inflan el saldo de la caja).
+  if (!store.config.saldoFecha) { store.config.saldoFecha = today(); persist(); }
   if (store.cajeroActual) { $('#cajName').textContent = store.cajeroActual; show('home'); }
   else { renderLogin(); show('login'); }
 }

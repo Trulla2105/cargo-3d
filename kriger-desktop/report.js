@@ -21,8 +21,9 @@ function efecto(m) {
 }
 
 function saldoActual(store, caja) {
+  const desde = (store.config && store.config.saldoFecha) || '';
   let s = (store.config && store.config['saldo' + (caja === 'frente' ? 'Frente' : 'Fondo')]) || 0;
-  (store.movs || []).forEach(m => s += efecto(m)[caja]);
+  (store.movs || []).forEach(m => { if (desde && m.fecha < desde) return; s += efecto(m)[caja]; });
   return s;
 }
 

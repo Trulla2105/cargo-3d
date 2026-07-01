@@ -103,6 +103,7 @@ function loadStore() {
       if (k === 'cajeros') { try { store.config.cajeros = JSON.parse(v) || []; } catch (e) { store.config.cajeros = []; } }
       else if (k === 'saldoFrente') store.config.saldoFrente = num(v);
       else if (k === 'saldoFondo') store.config.saldoFondo = num(v);
+      else if (k === 'saldoFecha') store.config.saldoFecha = v || '';
       else if (k === 'cajeroActual') store.cajeroActual = v || null;
       else if (k === 'fondoPin') store.config.fondoPin = v || '';
       else if (k === 'viewerUrl') store.config.viewerUrl = v || '';
@@ -172,6 +173,7 @@ function saveStore(store) {
     setCfg.run(['cajeros', JSON.stringify(cfg.cajeros || [])]);
     setCfg.run(['saldoFrente', String(num(cfg.saldoFrente))]);
     setCfg.run(['saldoFondo', String(num(cfg.saldoFondo))]);
+    setCfg.run(['saldoFecha', cfg.saldoFecha || '']);
     setCfg.run(['cajeroActual', store.cajeroActual || '']);
     setCfg.run(['fondoPin', cfg.fondoPin || '']);
     setCfg.run(['viewerUrl', cfg.viewerUrl || '']);
@@ -233,10 +235,14 @@ function flushToDisk() {
 }
 
 // Copia automatica: una por dia (se sobrescribe durante el dia). Guarda las
-// ultimas 30. Asi siempre hay puntos de restauracion sin que el usuario haga nada.
+// ultimas 30. Se hace como mucho cada 10 minutos para no frenar la carga.
+let _lastBackupMs = 0;
 function dailyBackup() {
   try {
     if (!backupDir) return;
+    const now = Date.now();
+    if (now - _lastBackupMs < 10 * 60 * 1000) return; // a lo sumo cada 10 min
+    _lastBackupMs = now;
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
     const d = new Date();
     const stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -278,9 +284,17 @@ function backupLabeled(label) {
   } catch (e) { /* no romper por la copia */ }
 }
 
+function todayISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
 // Agrega ventas/clientes/cajeros importados a lo que ya hay (sin pisar lo existente).
 function mergeImport(data) {
   const store = loadStore();
+  // Para que las ventas viejas NO inflen el saldo de la caja, el saldo cuenta
+  // desde hoy (salvo que ya haya una fecha de saldo puesta).
+  if (!store.config.saldoFecha) store.config.saldoFecha = todayISO();
   for (const m of (data.movs || [])) store.movs.push(m);
   for (const [k, c] of Object.entries(data.clientes || {})) {
     if (!store.clientes[k]) store.clientes[k] = c;
