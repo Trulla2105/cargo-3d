@@ -15,6 +15,7 @@ const state = {
 window.appState = state;
 
 let toastTimer = null;
+let editingBoxId = null; // id de la caja que se está editando con el lápiz
 
 function boxSignature(box) {
   return [
@@ -120,6 +121,22 @@ function addBox() {
 
   if (!w || !d || !h) return toast('Dimensiones de caja inválidas.', 'error');
 
+  // Modo edición: actualizar la caja existente en vez de crear una nueva
+  if (editingBoxId) {
+    const b = state.boxes.find(x => x.id === editingBoxId);
+    if (b) {
+      Object.assign(b, { name, sku, client, w, d, h, kg, qty, priority, fragile, color });
+      if ((b.placed || 0) > qty) b.placed = qty; // no dejar más colocadas que la cantidad
+    }
+    exitEditMode();
+    renderBoxList();
+    renderPlacedList();
+    updateStats();
+    updateBadge();
+    toast(`"${name}" actualizada.`, 'success');
+    return;
+  }
+
   const newBox = {
     id: Math.random().toString(36).slice(2),
     name, sku, client, w, d, h, kg, qty,
@@ -142,6 +159,55 @@ function addBox() {
   toast(existing ? `"${name}" sumada (${qty} u más).` : `"${name}" agregada (${qty} u).`, 'success');
 }
 
+// ── EDITAR CAJA (lápiz) ───────────────────────────────────────
+
+function editBoxType(id) {
+  const b = state.boxes.find(x => x.id === id);
+  if (!b) return;
+  editingBoxId = id;
+
+  document.getElementById('bName').value     = b.name || '';
+  document.getElementById('bSKU').value      = b.sku || '';
+  document.getElementById('bClient').value   = b.client || '';
+  document.getElementById('bW').value        = b.w;
+  document.getElementById('bD').value        = b.d;
+  document.getElementById('bH').value        = b.h;
+  document.getElementById('bKg').value       = b.kg;
+  document.getElementById('bQty').value      = b.qty;
+  document.getElementById('bPriority').value = b.priority;
+  document.getElementById('bFragile').value  = b.fragile;
+  document.getElementById('bColor').value    = b.color;
+
+  // Asegurar que el formulario esté desplegado
+  const body = document.getElementById('boxFormBody');
+  if (body && body.style.display === 'none') {
+    body.style.display = '';
+    const t = document.getElementById('toggleBoxForm');
+    if (t) t.textContent = '▾';
+  }
+  document.getElementById('btnAddBox').textContent = 'Guardar cambios';
+  document.getElementById('btnCancelEdit').style.display = '';
+
+  renderBoxList();
+  document.getElementById('bName').focus();
+  setStatus(`Editando "${b.name}"`, '#f0883e');
+}
+
+function exitEditMode() {
+  editingBoxId = null;
+  document.getElementById('btnAddBox').textContent = '+ Agregar caja';
+  document.getElementById('btnCancelEdit').style.display = 'none';
+  document.getElementById('bName').value = '';
+  document.getElementById('bSKU').value = '';
+  document.getElementById('bQty').value = 1;
+  setStatus('Listo');
+}
+
+function cancelEdit() {
+  exitEditMode();
+  renderBoxList();
+}
+
 function addOrMergeBox(newBox) {
   const existing = state.boxes.find(b => boxSignature(b) === boxSignature(newBox));
   if (existing) {
@@ -154,6 +220,7 @@ function addOrMergeBox(newBox) {
 
 function removeBoxType(id) {
   state.boxes = state.boxes.filter(b => b.id !== id);
+  if (editingBoxId === id) exitEditMode();
   renderBoxList();
   renderPlacedList();
   updateStats();
@@ -174,7 +241,7 @@ function renderBoxList() {
   host.innerHTML = '';
   pendingBoxes.forEach(b => {
     const item = document.createElement('div');
-    item.className = 'box-item';
+    item.className = 'box-item' + (b.id === editingBoxId ? ' editing' : '');
     item.style.touchAction = 'none';
 
     const tags = [];
@@ -194,12 +261,14 @@ function renderBoxList() {
         </div>
         <div class="box-tags">${tags.join('')}</div>
       </div>
+      <button class="box-edit" onclick="editBoxType('${b.id}')" title="Editar / cambiar cantidad">✎</button>
       <button class="box-del" onclick="removeBoxType('${b.id}')" title="Eliminar">×</button>
     `;
     // Drag por pointer events (no HTML5 DnD): así los keydown R/T llegan
     // mientras se arrastra, para poder rotar antes de soltar.
     item.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
+      if (e.target.closest('button')) return; // no arrastrar al tocar ✎ o ×
       if (typeof startManualPointerPending === 'function') startManualPointerPending(b, e.clientX, e.clientY);
     });
     item.addEventListener('dblclick', () => {
@@ -849,6 +918,7 @@ function wireButtons() {
     if (typeof redoCargoLayout === 'function') redoCargoLayout();
   });
   document.getElementById('btnAddBox').addEventListener('click', addBox);
+  document.getElementById('btnCancelEdit').addEventListener('click', cancelEdit);
   document.getElementById('btnClearScene').addEventListener('click', () => {
     removeBoxMeshes();
     state.boxes.forEach(b => b.placed = 0);
